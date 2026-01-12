@@ -1,0 +1,5 @@
+@tsgsBot_C__HostAddress = http://localhost:5215
+
+GET {{tsgsBot_C__HostAddress}}/
+Accept: text/plain
+###
