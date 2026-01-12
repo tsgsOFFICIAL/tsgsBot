@@ -1,8 +1,6 @@
 ﻿# tsgsBot C#
 
 ## Commands that needs ported:
-### public
-- tictactoe
 
 ### Restricted
 - giveaway
