@@ -69,7 +69,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             .WithSelectMenu(platformMenu, row: 3)
             .WithButton(continueBtn, row: 4);
 
-        await Context.Interaction.ModifyOriginalResponseAsync(x =>
+        await ModifyOriginalResponseAsync(x =>
         {
             x.Content = $"Selected: **{appName}**\nNow fill out the remaining fields.";
             x.Components = builder.Build();

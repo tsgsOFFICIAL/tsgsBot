@@ -35,6 +35,7 @@ builder.Services.AddSingleton<InteractionService>(sp =>
 });
 
 builder.Services.AddSingleton<SupportFormStateService>();
+builder.Services.AddSingleton<PollFormStateService>();
 builder.Services.AddSingleton<MemberCounterService>();
 
 // Optional: add hosted service that manages lifetime of the Discord connection + command registration
@@ -64,7 +65,7 @@ await app.RunAsync();
 // ─────────────────────────────────────────────────────────────────────────────
 //                          Hosted Service – the real bot logic
 // ─────────────────────────────────────────────────────────────────────────────
-internal sealed class DiscordBotHostedService(DiscordSocketClient client, InteractionService interactionService, IServiceProvider serviceProvider, SupportFormStateService stateService, ILogger<DiscordBotHostedService> logger) : BackgroundService
+internal sealed class DiscordBotHostedService(DiscordSocketClient client, InteractionService interactionService, IServiceProvider serviceProvider, SupportFormStateService supportStateService, PollFormStateService pollStateService, ILogger<DiscordBotHostedService> logger) : BackgroundService
 {
     private static readonly (ActivityType Type, string Name)[] ActivityCombos =
     [
@@ -301,11 +302,13 @@ internal sealed class DiscordBotHostedService(DiscordSocketClient client, Intera
         {
             try
             {
-                int removed = stateService.Cleanup(TimeSpan.FromMinutes(30));
+                int removed = supportStateService.Cleanup(TimeSpan.FromMinutes(30));
                 if (removed > 0)
-                {
                     logger.LogInformation("Cleaned up {Count} expired support form states.", removed);
-                }
+
+                removed = pollStateService.Cleanup(TimeSpan.FromHours(30));
+                if (removed > 0)
+                    logger.LogInformation("Cleaned up {Count} expired poll form states.", removed);
             }
             catch (Exception ex)
             {

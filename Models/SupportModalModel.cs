@@ -34,24 +34,4 @@ namespace tsgsBot_C_.Models
         [ModalTextInput("additional", TextInputStyle.Paragraph)]
         public required string Additional { get; set; }
     }
-    /// <summary>
-    /// Represents the state of a user support form, including selected application, issue details, and metadata.
-    /// </summary>
-    /// <remarks>This class is typically used to capture and track user input when submitting a support
-    /// request. The properties correspond to form fields and metadata relevant for processing or expiring the form.
-    /// Instances may be considered incomplete until the required fields, such as the selected application, are
-    /// provided.</remarks>
-    public class UserSupportFormState
-    {
-        public string? SelectedApp { get; set; } // "cs2aa" or "sdc"
-        public string? IssueType { get; set; }
-        public string? Reproducibility { get; set; }
-        public string? Urgency { get; set; }
-        public string? Platform { get; set; }
-
-        // used as a timestamp for cleanup (e.g. expire after 30 min)
-        public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-
-        public bool IsComplete => !string.IsNullOrEmpty(SelectedApp);
-    }
 }
