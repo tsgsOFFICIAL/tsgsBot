@@ -173,11 +173,12 @@ internal sealed class DiscordBotHostedService(DiscordSocketClient client, Intera
             // Register all Interaction modules (slash commands, modals, etc.)
             await interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), serviceProvider);
 
-            // For local development / testing guild
-            await interactionService.RegisterCommandsToGuildAsync(227048721710317569);
+            string? env = Environment.GetEnvironmentVariable("ENVIRONMENT");
 
-            // For production
-            // await _interactionService.RegisterCommandsGloballyAsync();
+            if (!string.IsNullOrEmpty(env) && env.Equals("production", StringComparison.OrdinalIgnoreCase))
+                await interactionService.RegisterCommandsGloballyAsync(); // For production
+            else
+                await interactionService.RegisterCommandsToGuildAsync(227048721710317569); // For local development / testing guild
 
             _cts = new CancellationTokenSource();
 
@@ -193,7 +194,6 @@ internal sealed class DiscordBotHostedService(DiscordSocketClient client, Intera
             await memberCounter.UpdateAsync();
 
             logger.LogInformation("🤖 Logged in as bot with ID {BotId}", client.CurrentUser?.Id);
-
             logger.LogInformation("✅ Bot is ready and commands registered!");
 
             SharedProperties.Instance.Initialize();
