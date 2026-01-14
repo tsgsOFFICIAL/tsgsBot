@@ -6,8 +6,7 @@ namespace tsgsBot_C_.Commands.Public
     public sealed class PingCommand : LoggedCommandModule
     {
         [SlashCommand("ping", "Check the bot's latency.")]
-        [CommandContextType(InteractionContextType.Guild | InteractionContextType.BotDm)]
-        [IntegrationType(ApplicationIntegrationType.GuildInstall | ApplicationIntegrationType.UserInstall)]
+        [CommandContextType(InteractionContextType.Guild, InteractionContextType.BotDm)]
         [DefaultMemberPermissions(GuildPermission.UseApplicationCommands)]
         public async Task PingAsync()
         {
