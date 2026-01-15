@@ -4,6 +4,7 @@ using tsgsBot_C_.Services;
 using tsgsBot_C_.Models;
 using Discord.Rest;
 using Discord;
+using Discord.WebSocket;
 
 namespace tsgsBot_C_.Commands.Restricted
 {
@@ -123,10 +124,15 @@ namespace tsgsBot_C_.Commands.Restricted
 
             emojis = [.. emojis.Distinct()];
 
+            // Get the display name and avatar URL safely
+            string displayName = (Context.User as SocketGuildUser)?.Nickname ?? Context.User.Username;
+            string avatarUrl = Context.User.GetAvatarUrl(size: 512);
+
             // Preview embed
             EmbedBuilder previewEmbed = new EmbedBuilder()
                 .WithTitle("📊 Poll (Preview)")
-                //.WithAuthor(Context.User.GlobalName, Context.User.GetAvatarUrl(size: 512), "https://discord.gg/Cddu5aJ")
+                // Use the correct parameters for WithAuthor
+                .WithAuthor(displayName, avatarUrl, "https://discord.gg/Cddu5aJ")
                 .WithDescription(
                     $"{question}\n\n" +
                     string.Join("\n", answers.Select((a, i) => $"{emojis[i]} {a}")) +

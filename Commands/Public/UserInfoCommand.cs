@@ -21,6 +21,8 @@ namespace tsgsBot_C_.Commands.Public
                 member = Context.Guild.GetUser(targetUser.Id);
             }
 
+            string displayName = (Context.User as SocketGuildUser)?.Nickname ?? Context.User.Username;
+
             // 3. Build embed
             EmbedBuilder embed = new EmbedBuilder()
                 .WithTitle($"{targetUser.Username}'s Userinfo")
@@ -28,7 +30,7 @@ namespace tsgsBot_C_.Commands.Public
                 .WithColor(new Color(252, 186, 3)) // #fcba03 orange-ish
                 .WithTimestamp(DateTimeOffset.UtcNow)
                 .WithUrl("https://discord.gg/Cddu5aJ")
-                .WithAuthor(targetUser.GlobalName, targetUser.GetAvatarUrl(size: 512), "https://discord.gg/Cddu5aJ")
+                .WithAuthor(displayName, targetUser.GetAvatarUrl(size: 512), "https://discord.gg/Cddu5aJ")
                 .WithFooter(Context.Client.CurrentUser?.Username ?? "Bot", Context.Client.CurrentUser?.GetAvatarUrl(size: 512))
                 .WithThumbnailUrl(targetUser.GetAvatarUrl(size: 512) ?? targetUser.GetDefaultAvatarUrl())
                 .AddField("Username", targetUser.Username, inline: true)

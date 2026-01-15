@@ -83,9 +83,11 @@ namespace tsgsBot_C_.Commands.Public
                     return;
                 }
 
+                string displayName = (randomMeme.Author as SocketGuildUser)?.Nickname ?? randomMeme.Author.Username;
+
                 EmbedBuilder embed = new EmbedBuilder()
                     .WithAuthor(
-                        name: randomMeme.Author.Username,
+                        name: displayName,
                         iconUrl: randomMeme.Author.GetAvatarUrl(ImageFormat.Auto, 128) ?? randomMeme.Author.GetDefaultAvatarUrl())
                     .WithTitle($"Random Liam Meme #{memeCandidates.IndexOf(randomMeme) + 1}")
                     .WithDescription($"[Jump to original]({randomMeme.GetJumpUrl()})")

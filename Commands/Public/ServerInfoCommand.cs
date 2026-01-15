@@ -44,7 +44,7 @@ namespace tsgsBot_C_.Commands.Public
                 .WithColor(new Color(252, 186, 3)) // #fcba03
                 .WithUrl("https://discord.gg/Cddu5aJ")
                 .WithAuthor(
-                    name: owner?.Username ?? "Unknown Owner",
+                    name: owner?.Nickname ?? owner?.Username,
                     iconUrl: owner?.GetAvatarUrl(ImageFormat.Auto, 128),
                     url: "https://discord.gg/Cddu5aJ")
                 .WithFooter(botTag, botAvatarUrl)
