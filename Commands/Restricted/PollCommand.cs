@@ -208,7 +208,7 @@ namespace tsgsBot_C_.Commands.Restricted
                 [.. answers],
                 emojis,
                 endTime
-                );
+            );
 
             // Schedule finalization in background
             _ = Task.Run(async () =>
