@@ -23,7 +23,7 @@ namespace tsgsBot_C_.Services
             _dbHelper = new DatabaseHelper();
 
             const string createPollsTableQuery = @"
-                CREATE TABLE IF NOT EXISTS active_polls (
+                CREATE TABLE IF NOT EXISTS polls (
                     id SERIAL PRIMARY KEY,
                     message_id TEXT UNIQUE NOT NULL,
                     channel_id TEXT NOT NULL,
@@ -37,8 +37,8 @@ namespace tsgsBot_C_.Services
                     created_by NUMERIC NOT NULL
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_active_polls_active 
-                    ON active_polls (has_ended, end_time) 
+                CREATE INDEX IF NOT EXISTS idx_polls_active 
+                    ON polls (has_ended, end_time) 
                     WHERE has_ended = FALSE;
             ";
 
@@ -71,7 +71,7 @@ namespace tsgsBot_C_.Services
             string emojisJson = JsonSerializer.Serialize(emojis);
 
             const string query = @"
-                INSERT INTO active_polls (message_id, channel_id, guild_id, question, answers, emojis, end_time, created_by)
+                INSERT INTO polls (message_id, channel_id, guild_id, question, answers, emojis, end_time, created_by)
                 VALUES (@messageId, @channelId, @guildId, @question, @answers, @emojis, @endTime, @createdByUserId)
                 RETURNING id;";
 
@@ -106,7 +106,7 @@ namespace tsgsBot_C_.Services
         /// <returns>The poll if found; otherwise, null.</returns>
         public async Task<DatabasePollModel?> GetPollAsync(int id)
         {
-            const string query = "SELECT * FROM active_polls WHERE id = @id;";
+            const string query = "SELECT * FROM polls WHERE id = @id;";
 
             NpgsqlParameter[] parameters = new NpgsqlParameter[] {
                 new("@id", id)
@@ -138,7 +138,7 @@ namespace tsgsBot_C_.Services
         /// <returns>A list of active polls.</returns>
         public async Task<List<DatabasePollModel>> GetActivePollsAsync()
         {
-            const string query = "SELECT * FROM active_polls WHERE has_ended = FALSE;";
+            const string query = "SELECT * FROM polls WHERE has_ended = FALSE;";
 
             List<DatabasePollModel> polls = new List<DatabasePollModel>();
 
@@ -169,7 +169,7 @@ namespace tsgsBot_C_.Services
         /// <param name="hasEnded">The new ended status (default: true).</param>
         public async Task UpdatePollEndedAsync(int id, bool hasEnded = true)
         {
-            const string query = "UPDATE active_polls SET has_ended = @hasEnded WHERE id = @id;";
+            const string query = "UPDATE polls SET has_ended = @hasEnded WHERE id = @id;";
 
             NpgsqlParameter[] parameters = new NpgsqlParameter[]
             {
@@ -185,7 +185,7 @@ namespace tsgsBot_C_.Services
         /// <param name="id">The poll ID.</param>
         public async Task DeletePollAsync(int id)
         {
-            const string query = "DELETE FROM active_polls WHERE id = @id;";
+            const string query = "DELETE FROM polls WHERE id = @id;";
 
             NpgsqlParameter[] parameters = new NpgsqlParameter[] {
                 new("@id", id)
