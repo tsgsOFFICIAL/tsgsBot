@@ -9,7 +9,7 @@ namespace tsgsBot_C_.Commands.Public
     {
         private static readonly Regex UrlRegex = new(@"\bhttps?://\S+\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        [SlashCommand("liam", "Fetches a random meme from the sacred #liams-memes channel.")]
+        [SlashCommand("liam", "Fetches a random meme from the sacred #liams-memes channel")]
         [CommandContextType(InteractionContextType.Guild)]
         [DefaultMemberPermissions(GuildPermission.UseApplicationCommands)]
         public async Task LiamAsync()

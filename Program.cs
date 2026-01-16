@@ -279,8 +279,8 @@ internal sealed class DiscordBotHostedService(DiscordSocketClient client, Intera
             PollService pollService = serviceProvider.GetRequiredService<PollService>();
             GiveawayService giveawayService = serviceProvider.GetRequiredService<GiveawayService>();
 
-            logger.LogInformation("🤖 Logged in as bot with ID {BotId}", client.CurrentUser?.Id);
-            logger.LogInformation("✅ Bot is ready and commands registered!");
+            logger.LogInformation("🤖  Logged in as bot with ID {BotId}", client.CurrentUser?.Id);
+            logger.LogInformation("✅  Bot is ready and commands registered!");
 
             SharedProperties.Instance.Init();
 

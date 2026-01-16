@@ -5,7 +5,7 @@ namespace tsgsBot_C_.Commands.Public
 {
     public sealed class RandomNumberCommand : LoggedCommandModule
     {
-        [SlashCommand("randomnumber", "Generates a random number between the specified minimum and maximum values.")]
+        [SlashCommand("randomnumber", "Generates a random number between the specified minimum and maximum values")]
         [DefaultMemberPermissions(GuildPermission.UseApplicationCommands)]
         public async Task RandomNumberAsync(
             [Summary("min", "Minimum value (inclusive)")] int min = 1,

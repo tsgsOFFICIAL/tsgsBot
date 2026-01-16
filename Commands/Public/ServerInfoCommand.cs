@@ -6,7 +6,7 @@ namespace tsgsBot_C_.Commands.Public
 {
     public sealed class ServerInfoCommand : LoggedCommandModule
     {
-        [SlashCommand("serverinfo", "Displays information about the server.")]
+        [SlashCommand("serverinfo", "Displays information about the server")]
         [CommandContextType(InteractionContextType.Guild)]
         [DefaultMemberPermissions(GuildPermission.UseApplicationCommands)]
         public async Task ServerInfoAsync()

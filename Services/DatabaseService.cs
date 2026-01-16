@@ -23,7 +23,7 @@ namespace tsgsBot_C_.Services
         {
             _dbHelper = new DatabaseHelper();
 
-            const string createPollsTableQuery = @"
+            string createTablesQuery = @"
                 CREATE TABLE IF NOT EXISTS polls (
                     id SERIAL PRIMARY KEY,
                     message_id TEXT UNIQUE NOT NULL,
@@ -41,9 +41,7 @@ namespace tsgsBot_C_.Services
                 CREATE INDEX IF NOT EXISTS idx_polls_active 
                     ON polls (has_ended, end_time) 
                     WHERE has_ended = FALSE;
-            ";
 
-            const string createGiveawaysTableQuery = @"
                 CREATE TABLE IF NOT EXISTS giveaways (
                     id SERIAL PRIMARY KEY,
                     message_id TEXT UNIQUE NOT NULL,
@@ -62,10 +60,16 @@ namespace tsgsBot_C_.Services
                 CREATE INDEX IF NOT EXISTS idx_giveaways_active
                     ON giveaways (has_ended, end_time)
                     WHERE has_ended = FALSE;
+
+                CREATE TABLE IF NOT EXISTS secrets (
+                    id SERIAL PRIMARY KEY,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT (TIMEZONE('UTC', NOW()))
+                );
             ";
 
-            _dbHelper.ExecuteNonQueryAsync(createPollsTableQuery).GetAwaiter().GetResult();
-            _dbHelper.ExecuteNonQueryAsync(createGiveawaysTableQuery).GetAwaiter().GetResult();
+            _dbHelper.ExecuteNonQueryAsync(createTablesQuery).GetAwaiter().GetResult();
         }
 
         /// <summary>

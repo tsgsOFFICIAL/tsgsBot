@@ -7,7 +7,7 @@ namespace tsgsBot_C_.Commands.Moderation
 {
     public sealed class MuteCommands : LoggedCommandModule
     {
-        [SlashCommand("mute", "Mutes a member by giving them the 'Muted' role.")]
+        [SlashCommand("mute", "Mutes a member by giving them the 'Muted' role")]
         [CommandContextType(InteractionContextType.Guild)]
         [DefaultMemberPermissions(GuildPermission.MuteMembers)]
         public async Task MuteAsync(

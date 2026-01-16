@@ -6,7 +6,7 @@ namespace tsgsBot_C_.Commands.Public
 {
     public sealed class SoftwareCommand : LoggedCommandModule
     {
-        [SlashCommand("software", "Get links to download and install tsgsOFFICIAL's software.")]
+        [SlashCommand("software", "Get links to download and install tsgsOFFICIAL's software")]
         [DefaultMemberPermissions(GuildPermission.UseApplicationCommands)]
         public async Task SoftwareAsync()
         {
