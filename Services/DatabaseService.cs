@@ -191,6 +191,8 @@ namespace tsgsBot_C_.Services
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
         }
         #endregion
+        #region Giveaways
+        #endregion
     }
 
     /// <summary>

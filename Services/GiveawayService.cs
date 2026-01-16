@@ -4,34 +4,9 @@ using Discord;
 
 namespace tsgsBot_C_.Services
 {
-    /// <summary>
-    /// Provides functionality to finalize polls by counting votes, generating result summaries, updating poll status in
-    /// the database, and posting final results to the channel.
-    /// </summary>
-    /// <remarks>This service is intended for use in scenarios where interactive polls are managed and results
-    /// need to be published after completion. It ensures that poll data is accurately finalized and that results are
-    /// communicated to users. The class is sealed and should not be inherited.</remarks>
-    /// <param name="logger">The logger used to record informational and error messages related to poll finalization.</param>
-    public sealed class PollService(ILogger<PollService> logger)
+    public sealed class GiveawayService(ILogger<PollService> logger)
     {
-        /// <summary>
-        /// Finalizes a poll by calculating vote results, deleting the original poll message, and posting the final
-        /// results to the channel.
-        /// </summary>
-        /// <remarks>If the poll has already ended or cannot be found, no results are posted and the
-        /// operation completes silently. The method subtracts the bot's own reaction from each vote count to ensure
-        /// accurate results. The results embed highlights the winning option or indicates a tie if
-        /// applicable.</remarks>
-        /// <param name="message">The user message representing the poll to be finalized. Must be a valid poll message in the channel.</param>
-        /// <param name="question">The poll question to display in the final results embed.</param>
-        /// <param name="answers">A list of answer options corresponding to the poll choices. Each answer should match the order of the
-        /// provided emojis.</param>
-        /// <param name="emojis">A list of emojis used as reaction options for the poll. Each emoji should correspond to an answer in the
-        /// same order.</param>
-        /// <param name="pollId">The unique identifier of the poll to finalize. Used to update poll status and retrieve poll data.</param>
-        /// <returns>A task that represents the asynchronous operation of finalizing the poll. The task completes when the poll
-        /// results have been posted and the original message deleted.</returns>
-        public async Task FinalizePollAsync(IUserMessage message, string question, List<string> answers, List<string> emojis, int pollId, ulong createdByUserId)
+        public async Task FinalizeGiveawayAsync(IUserMessage message, string question, List<string> answers, List<string> emojis, int pollId, ulong createdByUserId)
         {
             try
             {

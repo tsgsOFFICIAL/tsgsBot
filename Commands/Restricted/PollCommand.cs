@@ -2,13 +2,13 @@
 using Discord.Interactions;
 using tsgsBot_C_.Services;
 using tsgsBot_C_.Models;
+using Discord.WebSocket;
 using Discord.Rest;
 using Discord;
-using Discord.WebSocket;
 
 namespace tsgsBot_C_.Commands.Restricted
 {
-    public sealed class PollCommand(PollFormStateService stateService, PollService pollService) : LoggedCommandModule
+    public sealed class PollCommand(PollFormStateService stateService, PollService pollService, ILogger<PollCommand> logger) : LoggedCommandModule
     {
         [SlashCommand("poll", "Create a poll with a GUI")]
         [CommandContextType(InteractionContextType.Guild)]
@@ -211,36 +211,55 @@ namespace tsgsBot_C_.Commands.Restricted
                 await pollMessage.AddReactionAsync(emote);
             }
 
-            int pollId = await DatabaseService.Instance.CreatePollAsync(
-                pollMessage.Id.ToString(),
-                pollMessage.Channel.Id.ToString(),
-                Context.Guild!.Id.ToString(),
-                state.ModalData!.Question,
-                [.. answers],
-                emojis,
-                endTime,
-                Context.User.Id
-            );
+            logger.LogInformation("Poll created by {User} ({UserId}) in Guild {GuildId}, Channel {ChannelId}, Message {MessageId}",
+                Context.User.Username,
+                Context.User.Id,
+                Context.Guild!.Id,
+                Context.Channel.Id,
+                pollMessage.Id);
 
-            // Schedule finalization in background
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    TimeSpan timeLeft = endTime - DateTime.UtcNow;
-                    if (timeLeft > TimeSpan.Zero)
-                        await Task.Delay(timeLeft);
+                int pollId = await DatabaseService.Instance.CreatePollAsync(
+                        pollMessage.Id.ToString(),
+                        pollMessage.Channel.Id.ToString(),
+                        Context.Guild!.Id.ToString(),
+                        state.ModalData!.Question,
+                        [.. answers],
+                        emojis,
+                        endTime,
+                        Context.User.Id
+                    );
 
-                    // Fetch fresh message for reactions
-                    if (await pollMessage.Channel.GetMessageAsync(pollMessage.Id) is IUserMessage message)
-                        await pollService.FinalizePollAsync(message, state.ModalData!.Question, [.. answers], emojis, pollId, Context.User.Id);
-                }
-                catch (Exception ex)
+                logger.LogInformation("Poll recorded in database with PollId {PollId}", pollId);
+
+                // Schedule finalization in background
+                _ = Task.Run(async () =>
                 {
-                    // Log error (assuming logger is available; adjust as needed)
-                    Console.Error.WriteLine($"Error in poll finalization: {ex}");
-                }
-            });
+                    try
+                    {
+                        TimeSpan timeLeft = endTime - DateTime.UtcNow;
+
+                        logger.LogInformation("Poll finalization task started for PollId {PollId}, waiting {TimeLeft} until end time", pollId, timeLeft);
+
+                        if (timeLeft > TimeSpan.Zero)
+                            await Task.Delay(timeLeft);
+
+                        // Fetch fresh message for reactions
+                        if (await pollMessage.Channel.GetMessageAsync(pollMessage.Id) is IUserMessage message)
+                            await pollService.FinalizePollAsync(message, state.ModalData!.Question, [.. answers], emojis, pollId, Context.User.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log error (assuming logger is available; adjust as needed)
+                        Console.Error.WriteLine($"Error in poll finalization: {ex}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to record poll in database for MessageId {MessageId}", pollMessage.Id);
+            }
 
             // Clear state
             stateService.Clear(Context.User.Id);
