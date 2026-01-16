@@ -32,10 +32,20 @@ namespace tsgsBot_C_.Services
                 // Get a list of users who reacted with the giveaway emoji
                 List<IUser> reactedUsers = new List<IUser>();
 
-                IEmote giveawayEmote = Emote.TryParse(reactionEmoji, out Emote? parsed) ? parsed : new Emoji(reactionEmoji);
-                // Debug everything about the emote
-                logger.LogInformation("Giveaway Emote: {Emote}, Parsed: {Parsed}, Type: {Type}", reactionEmoji, parsed, giveawayEmote.GetType().Name);
-                logger.LogInformation("Message Reactions: {Reactions}", string.Join(", ", message.Reactions.Keys.Select(e => e.ToString())));
+                IEmote? giveawayEmote = message.Reactions.Keys.FirstOrDefault(e =>
+                {
+                    if (e is Emote emote)
+                        return emote.Name == reactionEmoji.Trim(':');
+                    if (e is Emoji emoji)
+                        return emoji.Name == reactionEmoji;
+                    return false;
+                });
+
+                if (giveawayEmote == null)
+                {
+                    logger.LogWarning("Giveaway emote not found on message");
+                    return;
+                }
 
                 if (message.Reactions.TryGetValue(giveawayEmote, out ReactionMetadata reactionMetadata))
                 {
