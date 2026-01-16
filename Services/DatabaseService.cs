@@ -90,7 +90,10 @@ namespace tsgsBot_C_.Services
                     Value = emojisJson
                 },
                 new("@endTime", DateTime.SpecifyKind(endTime, DateTimeKind.Unspecified)),
-                new("@createdByUserId", createdByUserId)
+                new("@createdByUserId", NpgsqlDbType.Numeric)
+                {
+                    Value = createdByUserId
+                }
             };
 
             object? result = await _dbHelper.ExecuteScalarAsync(query, parameters);
