@@ -105,7 +105,7 @@ namespace tsgsBot_C_.Commands.Restricted
                 .WithAuthor(displayName, avatarUrl, "https://discord.gg/Cddu5aJ")
                 .WithDescription(
                         $"**Prize:** {modal.Prize}\n\n" +
-                        $"React with {modal.ReactionEmoji} to enter!\n\n" +
+                        $"React with {emoji} to enter!\n\n" +
                         $"🏆 **Winners:** {modal.Winners}\n" +
                         $"⏳ **Ends:** <t:{DateTimeOffset.Now.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
                 .WithColor(Color.Teal);
@@ -150,11 +150,11 @@ namespace tsgsBot_C_.Commands.Restricted
             // Preview embed
             DateTime endTime = DateTime.UtcNow.AddMinutes(state.DurationMinutes);
             EmbedBuilder giveawayEmbed = new EmbedBuilder()
-                .WithTitle("📊 Giveaway (Preview)")
+                .WithTitle("📊 Giveaway")
                 .WithAuthor(displayName, avatarUrl, "https://discord.gg/Cddu5aJ")
                 .WithDescription(
                         $"**Prize:** {state.ModalData.Prize}\n\n" +
-                        $"React with {state.ModalData.ReactionEmoji} to enter!\n\n" +
+                        $"React with {emoji} to enter!\n\n" +
                         $"🏆 **Winners:** {state.ModalData.Winners}\n" +
                         $"⏳ **Ends:** <t:{DateTimeOffset.Now.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
                 .WithColor(Color.Teal);
