@@ -23,7 +23,7 @@
         string GuildId,
         string Prize,
         int Winners,
-        ulong? WinnerId,
+        List<ulong> WinnerIds,
         string ReactionEmoji,
         DateTime EndTime,
         bool HasEnded,

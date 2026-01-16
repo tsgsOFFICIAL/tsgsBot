@@ -51,7 +51,7 @@ namespace tsgsBot_C_.Services
                     guild_id TEXT NOT NULL,
                     prize TEXT NOT NULL,
                     winners INT NOT NULL DEFAULT 1,
-                    winner NUMERIC,
+                    winner_ids JSONB,
                     reaction_emoji TEXT NOT NULL DEFAULT '🎟️',
                     end_time TIMESTAMP NOT NULL,
                     has_ended BOOLEAN DEFAULT FALSE,
@@ -282,7 +282,7 @@ namespace tsgsBot_C_.Services
                     reader.GetString(reader.GetOrdinal("guild_id")),
                     reader.GetString(reader.GetOrdinal("prize")),
                     reader.GetInt32(reader.GetOrdinal("winners")),
-                    reader.IsDBNull(reader.GetOrdinal("winner")) ? null : Convert.ToUInt64(reader.GetValue(reader.GetOrdinal("winner"))),
+                    JsonSerializer.Deserialize<List<ulong>>(reader.GetString(reader.GetOrdinal("winner_ids"))) ?? new List<ulong>(),
                     reader.GetString(reader.GetOrdinal("reaction_emoji")),
                     reader.GetDateTime(reader.GetOrdinal("end_time")),
                     reader.GetBoolean(reader.GetOrdinal("has_ended")),
@@ -317,7 +317,7 @@ namespace tsgsBot_C_.Services
                     reader.GetString(reader.GetOrdinal("guild_id")),
                     reader.GetString(reader.GetOrdinal("prize")),
                     reader.GetInt32(reader.GetOrdinal("winners")),
-                    reader.IsDBNull(reader.GetOrdinal("winner")) ? null : Convert.ToUInt64(reader.GetValue(reader.GetOrdinal("winner"))),
+                    JsonSerializer.Deserialize<List<ulong>>(reader.GetString(reader.GetOrdinal("winner_ids"))) ?? new List<ulong>(),
                     reader.GetString(reader.GetOrdinal("reaction_emoji")),
                     reader.GetDateTime(reader.GetOrdinal("end_time")),
                     reader.GetBoolean(reader.GetOrdinal("has_ended")),
@@ -329,20 +329,23 @@ namespace tsgsBot_C_.Services
             return giveaways;
         }
         /// <summary>
-        /// Updates the status of a giveaway to indicate whether it has ended and optionally sets the winner.
+        /// Updates the status of a giveaway to indicate whether it has ended and optionally sets the list of winner
+        /// IDs.
         /// </summary>
         /// <param name="id">The unique identifier of the giveaway to update.</param>
-        /// <param name="winnerId">The user ID of the giveaway winner. Specify <see langword="null"/> if there is no winner or the winner is
-        /// not being set.</param>
+        /// <param name="winnerIds">A list of user IDs representing the winners of the giveaway, or null to leave the winner list unchanged.</param>
         /// <param name="hasEnded">A value indicating whether the giveaway has ended. The default is <see langword="true"/>.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
-        public async Task UpdateGiveawayEndedAsync(int id, ulong? winnerId = null, bool hasEnded = true)
+        /// <returns>A task that represents the asynchronous update operation.</returns>
+        public async Task UpdateGiveawayEndedAsync(int id, List<ulong>? winnerIds = null, bool hasEnded = true)
         {
-            const string query = "UPDATE giveaways SET has_ended = @hasEnded, winner = @winnerId WHERE id = @id;";
+            const string query = "UPDATE giveaways SET has_ended = @hasEnded, winner_ids = @winnerIds WHERE id = @id;";
             NpgsqlParameter[] parameters = new NpgsqlParameter[]
             {
                 new("@id", id),
-                new("@winnerId", winnerId.HasValue ? (decimal)winnerId.Value : DBNull.Value),
+                new("@winnerIds", NpgsqlDbType.Jsonb)
+                {
+                    Value = winnerIds != null ? JsonSerializer.Serialize(winnerIds) : DBNull.Value
+                },
                 new("@hasEnded", hasEnded)
             };
 

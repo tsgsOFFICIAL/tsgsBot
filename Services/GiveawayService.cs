@@ -71,6 +71,9 @@ namespace tsgsBot_C_.Services
                     .WithTimestamp(DateTimeOffset.UtcNow)
                     .Build();
 
+                // Mark as ended in DB (idempotent)
+                await DatabaseService.Instance.UpdateGiveawayEndedAsync(giveawayId, winnersList);
+
                 // Clean up original giveaway message and post results
                 await message.DeleteAsync();
                 await message.Channel.SendMessageAsync(embed: resultEmbed);
