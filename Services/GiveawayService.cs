@@ -33,6 +33,9 @@ namespace tsgsBot_C_.Services
                 List<IUser> reactedUsers = new List<IUser>();
 
                 IEmote giveawayEmote = Emote.TryParse(reactionEmoji, out Emote? parsed) ? parsed : new Emoji(reactionEmoji);
+                // Debug everything about the emote
+                logger.LogInformation("Giveaway Emote: {Emote}, Parsed: {Parsed}, Type: {Type}", reactionEmoji, parsed, giveawayEmote.GetType().Name);
+                logger.LogInformation("Message Reactions: {Reactions}", string.Join(", ", message.Reactions.Keys.Select(e => e.ToString())));
 
                 if (message.Reactions.TryGetValue(giveawayEmote, out ReactionMetadata reactionMetadata))
                 {
