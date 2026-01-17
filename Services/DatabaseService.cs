@@ -372,6 +372,20 @@ namespace tsgsBot_C_.Services
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
         }
         #endregion
+
+        #region TABLE [Secrets]
+        public async Task<string> GetSecretAsync(string key)
+        {
+            const string query = "SELECT value FROM secrets WHERE key = @key LIMIT 1;";
+            
+            NpgsqlParameter[] parameters = new NpgsqlParameter[] {
+                new("@key", key)
+            };
+
+            object? result = await _dbHelper.ExecuteScalarAsync(query, parameters);
+            return result?.ToString() ?? string.Empty;
+        }
+        #endregion
     }
 
     /// <summary>

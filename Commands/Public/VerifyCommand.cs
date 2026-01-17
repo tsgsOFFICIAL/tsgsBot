@@ -1,4 +1,5 @@
 ﻿using Discord.Interactions;
+using tsgsBot_C_.Services;
 using Discord.WebSocket;
 using Discord.Net;
 using Discord;
@@ -7,14 +8,15 @@ namespace tsgsBot_C_.Commands.Public
 {
     public sealed class VerifyCommand : LoggedCommandModule
     {
-        private const string ValidCode = "KK0MKEYJENWV"; // TODO: Move to secure storage / DB
-
         [SlashCommand("verify", "Verify your donation to receive the exclusive supporter role")]
         [CommandContextType(InteractionContextType.Guild)]
         [DefaultMemberPermissions(GuildPermission.UseApplicationCommands)]
         public async Task VerifyAsync([Summary("code", "Your unique verification code")] string code)
         {
             SocketRole? supportRole = Context.Guild.Roles.FirstOrDefault(role => role.Name.Equals("supporter", StringComparison.CurrentCultureIgnoreCase));
+            await DeferAsync(ephemeral: true);
+
+            string validCode = await DatabaseService.Instance.GetSecretAsync("supporter_verification_code");
 
             // 1. Log the command usage (with the code for audit/security)
             await LogCommandAsync(("code", code));
@@ -28,7 +30,7 @@ namespace tsgsBot_C_.Commands.Public
             {
                 message = "The supporter role does not exist on this server. Please contact an admin.";
             }
-            else if (code != ValidCode)
+            else if (code != validCode)
             {
                 message = "Invalid verification code. Please check your code and try again.";
             }
