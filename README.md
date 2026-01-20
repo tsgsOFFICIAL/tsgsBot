@@ -1,11 +1,14 @@
 ﻿# tsgsBot
 
-**tsgsBot** is a versatile, multi-purpose Discord bot built for the tsgsOFFICIAL community (and beyond).  
-It offers fun utilities, moderation tools, giveaways, polls, CS2 stats, custom software support, games, and more - all while running reliably on a Raspberry Pi.
+**tsgsBot** is a versatile, multi-purpose Discord bot built for the tsgsOFFICIAL community, and made open-source as inspiration for others.
 
+It offers fun utilities, moderation tools, giveaways, polls, CS2 stats, custom software support, games, and more - all while running reliably on a Raspberry Pi for maximum uptime, and minimal cost.
+
+[![GitHub stars](https://img.shields.io/github/stars/tsgsOFFICIAL/tsgsBot-CSharp?style=social)](https://github.com/tsgsOFFICIAL/tsgsBot-CSharp)
 [![Discord](https://img.shields.io/discord/227048721710317569?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/Cddu5aJ)
 [![.NET](https://img.shields.io/badge/.NET-10.0-blueviolet?logo=dotnet)](https://dotnet.microsoft.com/download)
 [![Discord.Net](https://img.shields.io/badge/Discord.Net-3.x-blue?logo=discord)](https://github.com/discord-net/Discord.Net)
+[![Support on Ko-fi](https://img.shields.io/badge/Support%20me%20on%20Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/tsgsOFFICIAL)
 
 ## Features
 
@@ -82,115 +85,214 @@ Most commands require only `UseApplicationCommands` permission - some need highe
 
 - `/dm [user] [message]` (Administrator)
 
-## Running & Managing the Bot (Raspberry Pi)
+## Self-Hosting / Running tsgsBot on Raspberry Pi
 
-tsgsBot runs as a systemd service named `tsgsbot` on a Raspberry Pi.
+This section documents the exact steps used to deploy tsgsBot on Raspberry Pi OS as user tsgsofficial — including .NET 10 installation, private repo cloning with deploy key, custom update script, and systemd service.
 
-All commands assume you're SSH'd in as user `tsgsofficial`.
-
-### Bot Management Cheat Sheet (Raspberry Pi)
-
-All commands assume you're SSH'd in as your user (`tsgsofficial`).
-
-#### 1. Check bot status (most used)
+### 1. Shell Improvements & Aliases
 
 ```bash
-sudo systemctl status tsgsbot
+nano ~/.bashrc
 ```
 
-→ Shows if running, uptime, last log lines. Use this first when something feels off.
-
-#### 2. View live bot logs (see what the bot is saying)
+> (added the lines below)
 
 ```bash
-journalctl -u tsgsbot -f
+source ~/.bashrc
 ```
 
-→ `-f` = follow/live tail.  
-Press `Ctrl+C` to stop watching.
-
-#### 3. View last N lines of logs (good for quick check)
+Aliases:
 
 ```bash
-journalctl -u tsgsbot -n 50
+alias please="sudo"
+alias cls="clear"
+alias clock="date '+%A %W %Y %X'"
+
+alias updatePi="sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y"
+
+# Bot aliases
+alias bot-status='sudo systemctl status tsgsbot'
+alias bot-logs='journalctl -u tsgsbot -f'
+alias bot-restart='sudo systemctl restart tsgsbot'
+alias bot-start='sudo systemctl start tsgsbot'
+alias bot-stop='sudo systemctl stop tsgsbot'
+alias bot-update='~/update-bot.sh'
+alias bot-rebuild='~/update-bot.sh && bot-restart'
 ```
 
-→ `-n 50` = last 50 lines. Change number as needed.
-
-#### 4. Restart the bot (after code change or crash)
+### 2. System Update & Prerequisites
 
 ```bash
-sudo systemctl restart tsgsbot
-```
-
-→ Stops + starts again. Takes ~5-10 seconds.
-
-#### 5. Stop the bot (turn off completely)
-
-```bash
-sudo systemctl stop tsgsbot
-```
-
-#### 6. Start the bot (if you stopped it)
-
-```bash
-sudo systemctl start tsgsbot
-```
-
-#### 7. Manually run the update script (pull code + rebuild + restart)
-
-```bash
-~/update-bot.sh
-```
-
-→ This fetches latest from GitHub, rebuilds, and restarts the service automatically.
-
-#### 8. Reboot the entire Pi (tests auto-start on boot)
-
-```bash
+updatePi
+sudo apt install curl git -y
 sudo reboot
 ```
 
-→ After reboot, wait ~1 min, then check status again.
-
-#### 9. Quick check if bot exe exists & is executable
+> (After reboot)
 
 ```bash
-ls -l ~/tsgsBot/publish/tsgsBot-CSharp
+updatePi
 ```
 
-→ Should show `-rwxr-xr-x` (the `x` means executable).
-
-#### 10. Update system packages (weekly-ish)
+### 3. Install .NET 10 SDK
 
 ```bash
-sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0
+echo 'export DOTNET_ROOT=$HOME/.dotnet' >> ~/.bashrc
+echo 'export PATH=$PATH:$HOME/.dotnet' >> ~/.bashrc
+source ~/.bashrc
 ```
 
-### Bash aliases
+Verify:
 
-1. Open your bash profile:
+```bash
+dotnet --version
+dotnet --list-sdks
+```
 
-    ```bash
-    nano ~/.bashrc
-    ```
+### 4. Create Directories
 
-2. Scroll to the bottom and add these lines:
+```bash
+mkdir -p ~/tsgsbot/publish
+mkdir -p ~/tsgsbot/gitClone
+```
 
-    ```bash
-    # Bot aliases
-    alias bot-status='sudo systemctl status tsgsbot'
-    alias bot-logs='journalctl -u tsgsbot -f'
-    alias bot-restart='sudo systemctl restart tsgsbot'
-    alias bot-start='sudo systemctl start tsgsbot'
-    alias bot-stop='sudo systemctl stop tsgsbot'
-    alias bot-update='~/update-bot.sh'
-    alias bot-rebuild='~/update-bot.sh && bot-restart'
-    ```
+### 5. Set Up SSH Deploy Key for Private Repo
 
-3. Save/exit (Ctrl+O → Enter → Ctrl+X)
+```bash
+ssh-keygen -t ed25519 -C "pi-bot-deploy" -f ~/.ssh/id_bot_deploy
+```
 
-4. Apply the changes:
-    ```bash
-    source ~/.bashrc
-    ```
+> (leave passphrase empty)
+
+```bash
+cat ~/.ssh/id_bot_deploy.pub
+```
+
+> → add this public key as a read-only deploy key in your GitHub repo settings (only applicable if you intend on keeping the bot repo private on GitHub)
+
+Test:
+
+```bash
+ssh -T -i ~/.ssh/id_bot_deploy git@github.com
+```
+
+> This should say something like: "_Hi tsgsOFFICIAL/tsgsBot-CSharp! You've successfully authenticated, but GitHub does not provide shell access._"
+
+Secure keys:
+
+```bash
+chmod 600 ~/.ssh/id_bot_deploy
+chmod 600 ~/.ssh/id_bot_deploy.pub
+```
+
+### 6. Clone the Private Repository
+
+```bash
+cd ~/tsgsbot/gitClone
+git clone --config core.sshCommand="ssh -i ~/.ssh/id_bot_deploy" git@github.com:tsgsOFFICIAL/tsgsBot-CSharp.git .
+```
+
+### 7. Create the Update Script
+
+```bash
+nano ~/update-bot.sh
+chmod +x ~/update-bot.sh
+```
+
+Contents:
+
+```bash
+#!/bin/bash
+
+# Config
+REPO_DIR="$HOME/tsgsBot/gitClone"
+PUBLISH_DIR="$HOME/tsgsBot/publish"
+SERVICE_NAME="tsgsbot.service"
+BRANCH="master"
+
+echo "Starting bot update at $(date)"
+
+cd "$REPO_DIR" || { echo "Repo dir not found!"; exit 1; }
+
+# Pull latest
+git fetch origin
+git reset --hard origin/"$BRANCH"
+
+# Restore & publish
+dotnet restore
+dotnet publish -c Release \
+    -r linux-arm64 \
+    --self-contained true \
+    -o "$PUBLISH_DIR"
+
+# Make executable
+chmod +x "$PUBLISH_DIR/tsgsBot-CSharp"
+
+echo "Publish done. Restarting service..."
+sudo systemctl restart "$SERVICE_NAME"
+
+echo "Update complete at $(date)"
+```
+
+### 8. Create systemd Service
+
+```bash
+sudo nano /etc/systemd/system/tsgsbot.service
+```
+
+Contents:
+
+```bash
+[Unit]
+Description=tsgsBot Discord.Net
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=tsgsofficial
+WorkingDirectory=/home/tsgsofficial/tsgsBot/publish
+ExecStart=/home/tsgsofficial/tsgsBot/publish/tsgsBot-CSharp
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+Environment="DISCORD_TOKEN=xxx"
+Environment="DB_CONNECTION_STRING=xxx"
+Environment="ENVIRONMENT=Production"
+Environment="STEAM_API_KEY=xxx"
+Environment="STEAM_WEB_API_KEY=xxx"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+After saving:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable tsgsbot
+sudo systemctl start tsgsbot
+```
+
+### Quick Commands (using aliases)
+
+`bot-update` → git pull + publish + restart
+`bot-logs` → live logs
+`bot-restart` → restart service
+`bot-status` → check running status
+`updatePi` → full system update
+
+Replace the xxx values in the service file with your real secrets before starting.
+
+## Roadmap
+
+This is where I track planned features, improvements, and experiments for tsgsBot. Feel free to open issues/discussions if something here excites you or if you'd like to help!
+
+### High Priority
+- [ ] Refactor reminder system to use a proper scheduler instead of in-memory timers.
+
+### Nice-to-Have
+
+### Ideas / Experiments
+
+Made with ❤️ by tsgsOFFICIAL
