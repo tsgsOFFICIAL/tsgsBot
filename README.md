@@ -289,7 +289,11 @@ Replace the xxx values in the service file with your real secrets before startin
 This is where I track planned features, improvements, and experiments for tsgsBot. Feel free to open issues/discussions if something here excites you or if you'd like to help!
 
 ### High Priority
+
+- [ ] Refactor reminder system to use a persistent state, from the database.
 - [ ] Refactor reminder system to use a proper scheduler instead of in-memory timers.
+- [ ] Refactor giveaways system to use a proper scheduler instead of in-memory timers.
+- [ ] Refactor poll system to use a proper scheduler instead of in-memory timers.
 
 ### Nice-to-Have
 
