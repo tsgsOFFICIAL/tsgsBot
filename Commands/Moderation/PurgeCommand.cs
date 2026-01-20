@@ -26,6 +26,9 @@ namespace tsgsBot_C_.Commands.Moderation
         [DefaultMemberPermissions(GuildPermission.ManageChannels)]
         public async Task PurgeAsync(int? amount = null, IUser? user = null)
         {
+            await DeferAsync(ephemeral: true);
+            await LogCommandAsync(("amount", amount), ("user", user));
+
             bool isNuke = amount == null && user == null;
 
             if (amount <= 0)
@@ -47,9 +50,6 @@ namespace tsgsBot_C_.Commands.Moderation
                     return;
                 }
             }
-
-            await DeferAsync(ephemeral: true);
-            await LogCommandAsync(("amount", amount), ("user", user));
 
             PurgeState state = new PurgeState
             {
