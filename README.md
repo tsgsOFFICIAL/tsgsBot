@@ -46,6 +46,7 @@ Most commands require only `UseApplicationCommands` permission - some need highe
 - `/userinfo [user]` → User details
 - `/randomnumber [min] [max]` → Random number generator
 - `/remind [task] [duration]` → Set a reminder
+- `/myreminders` → View all your active reminders
 - `/report [user] [reason]` → Report user to moderators
 
 ### Fun & Games
