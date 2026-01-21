@@ -24,16 +24,22 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
 
         [SlashCommand("purge", "Deletes messages or nukes the channel (if no params)")]
         [DefaultMemberPermissions(GuildPermission.ManageChannels)]
-        public async Task PurgeAsync(int? amount = null, IUser? user = null)
+        public async Task PurgeAsync(int? amount = null, IUser? user = null, bool allChannels = false)
         {
             await DeferAsync(ephemeral: true);
-            await LogCommandAsync(("amount", amount), ("user", user));
+            await LogCommandAsync(("amount", amount), ("user", user), ("allChannels", allChannels));
 
             bool isNuke = amount == null && user == null;
 
-            if (amount <= 0)
+            if (amount.HasValue && amount.Value <= 0)
             {
-                await RespondAsync("Amount must be positive if provided.", ephemeral: true);
+                await FollowupAsync("Amount must be positive if provided.", ephemeral: true);
+                return;
+            }
+
+            if (allChannels && user == null)
+            {
+                await FollowupAsync("The allChannels option can only be used when a user is specified.", ephemeral: true);
                 return;
             }
 
@@ -60,43 +66,96 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
             if (!isNuke)
             {
                 List<IMessage> allMessages = new List<IMessage>();
-                ulong? before = null;
                 int remaining = amount ?? int.MaxValue;
-                
-                if (Context.Channel is not ITextChannel channel)
+
+                if (allChannels && user != null)
                 {
-                    await FollowupAsync("Invalid channel.", ephemeral: true);
-                    return;
+                    // Fetch from all channels in the guild
+                    IReadOnlyCollection<SocketTextChannel> textChannels = Context.Guild.TextChannels;
+
+                    foreach (SocketTextChannel channel in textChannels)
+                    {
+                        if (remaining <= 0)
+                            break;
+
+                        // Check if bot has permissions to read message history and manage messages
+                        ChannelPermissions perms = Context.Guild.CurrentUser.GetPermissions(channel);
+                        if (!perms.ReadMessageHistory || !perms.ManageMessages)
+                            continue;
+
+                        ulong? before = null;
+
+                        while (remaining > 0)
+                        {
+                            int fetchCount = Math.Min(remaining, MaxFetchPerPage);
+                            IAsyncEnumerable<IReadOnlyCollection<IMessage>> pages;
+                            if (before.HasValue)
+                            {
+                                pages = channel.GetMessagesAsync(before.Value, Direction.Before, fetchCount);
+                            }
+                            else
+                            {
+                                pages = channel.GetMessagesAsync(fetchCount);
+                            }
+
+                            List<IMessage> fetched = new List<IMessage>();
+                            await foreach (IReadOnlyCollection<IMessage> page in pages)
+                            {
+                                fetched.AddRange(page);
+                            }
+
+                            if (fetched.Count == 0) break;
+
+                            List<IMessage> filtered = fetched.Where(m => m.Author.Id == user.Id).ToList();
+
+                            allMessages.AddRange(filtered.Take(remaining));
+                            remaining -= filtered.Count;
+                            before = fetched.LastOrDefault()?.Id;
+
+                            if (filtered.Count < fetchCount) break;
+                        }
+                    }
                 }
-
-                while (remaining > 0)
+                else
                 {
-                    int fetchCount = Math.Min(remaining, MaxFetchPerPage);
-                    IAsyncEnumerable<IReadOnlyCollection<IMessage>> pages;
-                    if (before.HasValue)
+                    // Fetch from current channel only
+                    if (Context.Channel is not ITextChannel channel)
                     {
-                        pages = channel.GetMessagesAsync(before.Value, Direction.Before, fetchCount);
-                    }
-                    else
-                    {
-                        pages = channel.GetMessagesAsync(fetchCount);
+                        await FollowupAsync("Invalid channel.", ephemeral: true);
+                        return;
                     }
 
-                    List<IMessage> fetched = new List<IMessage>();
-                    await foreach (IReadOnlyCollection<IMessage> page in pages)
+                    ulong? before = null;
+
+                    while (remaining > 0)
                     {
-                        fetched.AddRange(page);
+                        int fetchCount = Math.Min(remaining, MaxFetchPerPage);
+                        IAsyncEnumerable<IReadOnlyCollection<IMessage>> pages;
+                        if (before.HasValue)
+                        {
+                            pages = channel.GetMessagesAsync(before.Value, Direction.Before, fetchCount);
+                        }
+                        else
+                        {
+                            pages = channel.GetMessagesAsync(fetchCount);
+                        }
+
+                        List<IMessage> fetched = new List<IMessage>();
+                        await foreach (IReadOnlyCollection<IMessage> page in pages)
+                        {
+                            fetched.AddRange(page);
+                        }
+
+                        if (fetched.Count == 0) break;
+
+                        List<IMessage> filtered = user != null ? fetched.Where(m => m.Author.Id == user.Id).ToList() : fetched.ToList();
+
+                        allMessages.AddRange(filtered.Take(remaining));
+                        remaining -= filtered.Count;
+                        before = fetched.LastOrDefault()?.Id;
+
+                        if (filtered.Count < fetchCount) break;
                     }
-
-                    if (fetched.Count == 0) break;
-
-                    List<IMessage> filtered = user != null ? fetched.Where(m => m.Author.Id == user.Id).ToList() : fetched.ToList();
-
-                    allMessages.AddRange(filtered.Take(remaining));
-                    remaining -= filtered.Count;
-                    before = filtered.LastOrDefault()?.Id;
-
-                    if (filtered.Count < fetchCount) break;
                 }
 
                 if (allMessages.Count == 0)
