@@ -111,7 +111,7 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
                         $"**Prize:** {modal.Prize}\n\n" +
                         $"React with {emoji} to enter!\n\n" +
                         $"🏆 **Winners:** {modal.Winners}\n" +
-                        $"⏳ **Ends:** <t:{DateTimeOffset.Now.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
+                        $"⏳ **Ends:** <t:{DateTimeOffset.UtcNow.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
                 .WithColor(Color.Teal);
 
             ComponentBuilder confirmRow = new ComponentBuilder()
@@ -160,7 +160,7 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
                         $"**Prize:** {state.ModalData.Prize}\n\n" +
                         $"React with {emoji} to enter!\n\n" +
                         $"🏆 **Winners:** {state.ModalData.Winners}\n" +
-                        $"⏳ **Ends:** <t:{DateTimeOffset.Now.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
+                        $"⏳ **Ends:** <t:{DateTimeOffset.UtcNow.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
                 .WithColor(Color.Teal);
 
             RestUserMessage giveawayMessage = await Context.Channel.SendMessageAsync(embed: giveawayEmbed.Build());

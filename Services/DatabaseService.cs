@@ -31,9 +31,9 @@ namespace tsgsBot_C_.Services
                     question TEXT NOT NULL,
                     answers JSONB NOT NULL,
                     emojis JSONB NOT NULL,
-                    end_time TIMESTAMP NOT NULL,
+                    end_time TIMESTAMPTZ NOT NULL,
                     has_ended BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT (TIMEZONE('UTC', NOW())),
+                    created_at TIMESTAMPTZ DEFAULT (TIMEZONE('UTC', NOW())),
                     created_by NUMERIC NOT NULL
                 );
 
@@ -50,9 +50,9 @@ namespace tsgsBot_C_.Services
                     winners INT NOT NULL DEFAULT 1,
                     winner_ids JSONB,
                     reaction_emoji TEXT NOT NULL DEFAULT '🎟️',
-                    end_time TIMESTAMP NOT NULL,
+                    end_time TIMESTAMPTZ NOT NULL,
                     has_ended BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT (TIMEZONE('UTC', NOW())),
+                    created_at TIMESTAMPTZ DEFAULT (TIMEZONE('UTC', NOW())),
                     created_by NUMERIC NOT NULL
                 );
 
@@ -66,7 +66,7 @@ namespace tsgsBot_C_.Services
                     task TEXT NOT NULL,
                     reminder_time TIMESTAMPTZ NOT NULL,
                     has_sent BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT (TIMEZONE('UTC', NOW()))
+                    created_at TIMESTAMPTZ DEFAULT (TIMEZONE('UTC', NOW()))
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_reminders_active
@@ -77,7 +77,7 @@ namespace tsgsBot_C_.Services
                     id SERIAL PRIMARY KEY,
                     key TEXT NOT NULL,
                     value TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT (TIMEZONE('UTC', NOW()))
+                    created_at TIMESTAMPTZ DEFAULT (TIMEZONE('UTC', NOW()))
                 );
             ";
 
@@ -128,7 +128,10 @@ namespace tsgsBot_C_.Services
                 {
                     Value = emojisJson
                 },
-                new("@endTime", DateTime.SpecifyKind(endTime, DateTimeKind.Unspecified)),
+                new("@endTime", NpgsqlDbType.TimestampTz)
+                {
+                    Value = endTime
+                },
                 new("@createdByUserId", NpgsqlDbType.Numeric)
                 {
                     Value = (decimal)createdByUserId
@@ -265,7 +268,10 @@ namespace tsgsBot_C_.Services
                 new("@prize", prize),
                 new("@reaction_emoji", reactionEmoji),
                 new("@winners", winners),
-                new("@endTime", DateTime.SpecifyKind(endTime, DateTimeKind.Unspecified)),
+                new("@endTime", NpgsqlDbType.TimestampTz)
+                {
+                    Value = endTime
+                },
                 new("@createdByUserId", NpgsqlDbType.Numeric)
                 {
                     Value = (decimal)createdByUserId

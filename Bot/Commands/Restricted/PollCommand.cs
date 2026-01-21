@@ -139,7 +139,7 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
                 .WithDescription(
                     $"{question}\n\n" +
                     string.Join("\n", answers.Select((a, i) => $"{emojis[i]} {a}")) +
-                    $"\n\n⏳ Ends: <t:{DateTimeOffset.Now.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
+                    $"\n\n⏳ Ends: <t:{DateTimeOffset.UtcNow.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
                 .WithColor(Color.Teal);
 
             ComponentBuilder confirmRow = new ComponentBuilder()
@@ -202,7 +202,7 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
                 .WithDescription(
                     $"{state.ModalData.Question}\n\n" +
                     string.Join("\n", answers.Select((a, i) => $"{emojis[i]} {a}")) +
-                    $"\n\n⏳ Ends: <t:{DateTimeOffset.Now.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
+                    $"\n\n⏳ Ends: <t:{DateTimeOffset.UtcNow.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>")
                 .WithColor(Color.Teal);
 
             RestUserMessage pollMessage = await Context.Channel.SendMessageAsync(embed: pollEmbed.Build());
