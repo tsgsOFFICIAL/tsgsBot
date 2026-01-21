@@ -417,7 +417,10 @@ namespace tsgsBot_C_.Services
 
             NpgsqlParameter[] parameters =
             [
-                new("@user_id", userId),
+                new("@user_id", NpgsqlDbType.Numeric)
+                {
+                    Value = (decimal)userId
+                },
                 new("@task", task),
                 new("@reminder_time", reminderTime)
             ];
