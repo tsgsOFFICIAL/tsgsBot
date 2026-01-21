@@ -422,7 +422,11 @@ namespace tsgsBot_C_.Services
                     Value = (decimal)userId
                 },
                 new("@task", task),
-                new("@reminder_time", reminderTime)
+                new("@reminder_time", NpgsqlDbType.Timestamp)
+                {
+                    // Store as timezone-agnostic timestamp to avoid server TZ offsets
+                    Value = DateTime.SpecifyKind(reminderTime, DateTimeKind.Unspecified)
+                }
             ];
 
             object? result = await _dbHelper.ExecuteScalarAsync(query, parameters);
