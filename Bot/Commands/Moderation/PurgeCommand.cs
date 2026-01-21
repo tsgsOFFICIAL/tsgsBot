@@ -90,13 +90,9 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                             int fetchCount = Math.Min(remaining, MaxFetchPerPage);
                             IAsyncEnumerable<IReadOnlyCollection<IMessage>> pages;
                             if (before.HasValue)
-                            {
                                 pages = channel.GetMessagesAsync(before.Value, Direction.Before, fetchCount);
-                            }
                             else
-                            {
                                 pages = channel.GetMessagesAsync(fetchCount);
-                            }
 
                             List<IMessage> fetched = new List<IMessage>();
                             await foreach (IReadOnlyCollection<IMessage> page in pages)
@@ -104,7 +100,8 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                                 fetched.AddRange(page);
                             }
 
-                            if (fetched.Count == 0) break;
+                            if (fetched.Count == 0)
+                                break;
 
                             List<IMessage> filtered = fetched.Where(m => m.Author.Id == user.Id).ToList();
 
@@ -112,7 +109,8 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                             remaining -= filtered.Count;
                             before = fetched.LastOrDefault()?.Id;
 
-                            if (filtered.Count < fetchCount) break;
+                            if (fetched.Count < fetchCount)
+                                break; // No more messages available in this channel
                         }
                     }
                 }
@@ -132,13 +130,9 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                         int fetchCount = Math.Min(remaining, MaxFetchPerPage);
                         IAsyncEnumerable<IReadOnlyCollection<IMessage>> pages;
                         if (before.HasValue)
-                        {
                             pages = channel.GetMessagesAsync(before.Value, Direction.Before, fetchCount);
-                        }
                         else
-                        {
                             pages = channel.GetMessagesAsync(fetchCount);
-                        }
 
                         List<IMessage> fetched = new List<IMessage>();
                         await foreach (IReadOnlyCollection<IMessage> page in pages)
@@ -146,7 +140,8 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                             fetched.AddRange(page);
                         }
 
-                        if (fetched.Count == 0) break;
+                        if (fetched.Count == 0)
+                            break;
 
                         List<IMessage> filtered = user != null ? fetched.Where(m => m.Author.Id == user.Id).ToList() : fetched.ToList();
 
@@ -154,7 +149,8 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                         remaining -= filtered.Count;
                         before = fetched.LastOrDefault()?.Id;
 
-                        if (filtered.Count < fetchCount) break;
+                        if (filtered.Count < fetchCount)
+                            break;
                     }
                 }
 
@@ -208,8 +204,7 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                 return;
             }
 
-            ITextChannel? channel = Context.Channel as ITextChannel;
-            if (channel == null)
+            if (Context.Channel is not ITextChannel channel)
             {
                 await FollowupAsync("Invalid channel.", ephemeral: true);
                 return;
@@ -283,27 +278,61 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                 List<IMessage> bulkEligible = (state.Messages ?? new List<IMessage>()).Where(m => (now - m.CreatedAt).TotalDays < BulkAgeDays).ToList();
                 List<IMessage> older = (state.Messages ?? new List<IMessage>()).Except(bulkEligible).ToList();
 
-                for (int i = 0; i < bulkEligible.Count; i += MaxBulkDelete)
-                {
-                    List<IMessage> chunk = bulkEligible.Skip(i).Take(MaxBulkDelete).ToList();
-                    if (chunk.Count >= 2)
-                        await channel.DeleteMessagesAsync(chunk);
-                    else if (chunk.Count == 1)
-                        await chunk[0].DeleteAsync();
+                int deletedCount = 0;
+                int failedCount = 0;
 
-                    if (bulkEligible.Count > MaxBulkDelete) await Task.Delay(500);
+                // Group messages by channel
+                List<IGrouping<IMessageChannel, IMessage>> messagesByChannel = bulkEligible.GroupBy(m => m.Channel).ToList();
+                foreach (IGrouping<IMessageChannel, IMessage> channelGroup in messagesByChannel)
+                {
+                    IMessageChannel msgChannel = channelGroup.Key;
+                    if (msgChannel is not ITextChannel textChannel)
+                        continue;
+
+                    for (int i = 0; i < channelGroup.Count(); i += MaxBulkDelete)
+                    {
+                        List<IMessage> chunk = channelGroup.Skip(i).Take(MaxBulkDelete).ToList();
+                        try
+                        {
+                            if (chunk.Count >= 2)
+                                await textChannel.DeleteMessagesAsync(chunk);
+                            else if (chunk.Count == 1)
+                                await chunk[0].DeleteAsync();
+                            deletedCount += chunk.Count;
+                        }
+                        catch
+                        {
+                            // Messages may have been deleted externally - count as failed and continue
+                            failedCount += chunk.Count;
+                        }
+
+                        if (channelGroup.Count() > MaxBulkDelete) await Task.Delay(500);
+                    }
                 }
 
                 foreach (IMessage msg in older)
                 {
-                    await msg.DeleteAsync();
+                    try
+                    {
+                        await msg.DeleteAsync();
+                        deletedCount++;
+                    }
+                    catch
+                    {
+                        // Message may have been deleted externally - count as failed and continue
+                        failedCount++;
+                    }
                     await Task.Delay(250);
                 }
 
                 // Update the message (edits the confirmation message)
+                string resultMessage = failedCount > 0
+                    ? $"Deleted {deletedCount} of {state.Messages?.Count ?? 0} messages ({failedCount} failed - may have been deleted externally)."
+                    : $"Deleted {deletedCount} of {state.Messages?.Count ?? 0} messages.";
+
                 await Context.Interaction.ModifyOriginalResponseAsync(props =>
                 {
-                    props.Content = $"Deleted {state.Messages?.Count ?? 0} messages.";
+                    props.Content = resultMessage;
                     props.Components = null;
                 });
             }
