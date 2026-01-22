@@ -39,6 +39,7 @@ builder.Services.AddSingleton<PollFormStateService>();
 builder.Services.AddSingleton<PollService>();
 builder.Services.AddSingleton<GiveawayFormStateService>();
 builder.Services.AddSingleton<GiveawayService>();
+builder.Services.AddSingleton<RolePanelFormStateService>();
 builder.Services.AddSingleton<MemberCounterService>();
 
 // Background task queue for managing delayed operations

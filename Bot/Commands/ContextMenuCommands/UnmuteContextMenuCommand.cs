@@ -1,17 +1,34 @@
-﻿using Discord.Interactions;
+using Discord.Interactions;
 using Discord.WebSocket;
 using Discord;
 
-namespace tsgsBot_C_.Bot.Commands.Moderation
+namespace tsgsBot_C_.Bot.Commands.ContextMenuCommands
 {
-    public sealed class UnmuteCommand : LoggedCommandModule
+    /// <summary>
+    /// Context menu commands for unmuting users via right-click menu.
+    /// </summary>
+    public sealed class UnmuteContextMenuCommand : LoggedCommandModule
     {
-        [SlashCommand("unmute", "Unmutes a member by removing the 'Muted' role")]
+        [UserCommand("Unmute User")]
         [CommandContextType(InteractionContextType.Guild)]
         [DefaultMemberPermissions(GuildPermission.MuteMembers)]
-        public async Task UnmuteAsync(
-            [Summary("target", "The member to unmute")] IGuildUser target)
+        public async Task UnmuteUserCmAsync(IGuildUser target)
         {
+            await LogCommandAsync(("target", target));
+            await UnmuteUserAsync(target);
+        }
+
+        [MessageCommand("Unmute Message Author")]
+        [CommandContextType(InteractionContextType.Guild)]
+        [DefaultMemberPermissions(GuildPermission.MuteMembers)]
+        public async Task UnmuteMessageCmAsync(IMessage message)
+        {
+            if (message.Author is not IGuildUser target)
+            {
+                await RespondAsync("❌ Could not find the message author. They may have left the guild.", ephemeral: true);
+                return;
+            }
+
             await LogCommandAsync(("target", target));
             await UnmuteUserAsync(target);
         }

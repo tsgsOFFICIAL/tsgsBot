@@ -22,30 +22,6 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
             await MuteUserAsync(target, duration, reason);
         }
 
-        [UserCommand("Mute User")]
-        [CommandContextType(InteractionContextType.Guild)]
-        [DefaultMemberPermissions(GuildPermission.MuteMembers)]
-        public async Task MuteUserCmAsync(IGuildUser target)
-        {
-            await LogCommandAsync(("target", target));
-            await ShowMuteModalAsync(target);
-        }
-
-        [MessageCommand("Mute Message Author")]
-        [CommandContextType(InteractionContextType.Guild)]
-        [DefaultMemberPermissions(GuildPermission.MuteMembers)]
-        public async Task MuteMessageCmAsync(IMessage message)
-        {
-            if (message.Author is not IGuildUser target)
-            {
-                await RespondAsync("❌ Could not find the message author. They may have left the guild.", ephemeral: true);
-                return;
-            }
-
-            await LogCommandAsync(("target", target));
-            await ShowMuteModalAsync(target);
-        }
-
         [ModalInteraction("mute_modal_*", TreatAsRegex = true)]
         public async Task HandleMuteModalAsync(MuteModal modal)
         {
@@ -70,17 +46,6 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
             string reason = string.IsNullOrWhiteSpace(modal.Reason) ? "No reason provided" : modal.Reason.Trim();
 
             await MuteUserAsync(target, duration, reason, defer: false); // Already deferred
-        }
-
-        private async Task ShowMuteModalAsync(IGuildUser target)
-        {
-            ModalBuilder modal = new ModalBuilder()
-                .WithTitle($"Mute {target.Username}")
-                .WithCustomId($"mute_modal_{target.Id}")
-                .AddTextInput("Duration (e.g., 10m, 1h, 2d)", "duration", TextInputStyle.Short, required: false)
-                .AddTextInput("Reason for mute", "reason", TextInputStyle.Paragraph, required: false);
-
-            await RespondWithModalAsync(modal.Build());
         }
 
         private async Task MuteUserAsync(IGuildUser target, string? duration, string reason, bool defer = true)

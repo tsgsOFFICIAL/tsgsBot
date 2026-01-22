@@ -17,13 +17,13 @@ namespace tsgsBot_C_.Bot
         SupportFormStateService supportStateService,
         PollFormStateService pollStateService,
         GiveawayFormStateService giveawayStateService,
+        RolePanelFormStateService rolePanelFormStateService,
         IBackgroundTaskQueue backgroundTaskQueue,
         ILogger<DiscordBotHostedService> logger) : BackgroundService
     {
         // Configuration constants
         private const int ACTIVITY_UPDATE_INTERVAL_MINUTES = 5;
         private const int CLEANUP_INTERVAL_MINUTES = 30;
-        private const int STATE_CLEANUP_TIMEOUT_MINUTES = 30;
         private const string ENVIRONMENT_VARIABLE_NAME = "ENVIRONMENT";
         private const string PRODUCTION_ENVIRONMENT = "production";
 
@@ -175,7 +175,7 @@ namespace tsgsBot_C_.Bot
                 {
                     try
                     {
-                        TimeSpan timeout = TimeSpan.FromMinutes(STATE_CLEANUP_TIMEOUT_MINUTES);
+                        TimeSpan timeout = TimeSpan.FromMinutes(CLEANUP_INTERVAL_MINUTES);
 
                         int removed = supportStateService.Cleanup(timeout);
                         if (removed > 0)
@@ -188,6 +188,10 @@ namespace tsgsBot_C_.Bot
                         removed = giveawayStateService.Cleanup(timeout);
                         if (removed > 0)
                             logger.LogInformation("Cleaned up {Count} expired giveaway form states.", removed);
+
+                        removed = rolePanelFormStateService.Cleanup(timeout);
+                        if (removed > 0)
+                            logger.LogInformation("Cleaned up {Count} expired role panel form states.", removed);
                     }
                     catch (Exception ex)
                     {
@@ -331,7 +335,9 @@ namespace tsgsBot_C_.Bot
 
                 List<DatabasePollModel> activePolls = await DatabaseService.Instance.GetActivePollsAsync();
                 List<DatabaseGiveawayModel> activeGiveaways = await DatabaseService.Instance.GetActiveGiveawaysAsync();
+                List<DatabaseReminderModel> activeReminders = await DatabaseService.Instance.GetActiveRemindersAsync();
 
+                // Resurrect active polls
                 logger.LogInformation("Resurrecting {Count} active poll(s)...", activePolls.Count);
 
                 foreach (DatabasePollModel poll in activePolls)
@@ -396,6 +402,7 @@ namespace tsgsBot_C_.Bot
                     }
                 }
 
+                // Resurrect active giveaways
                 logger.LogInformation("Resurrecting {Count} active giveaway(s)...", activeGiveaways.Count);
 
                 foreach (DatabaseGiveawayModel giveaway in activeGiveaways)
@@ -461,7 +468,6 @@ namespace tsgsBot_C_.Bot
                 }
 
                 // Resurrect active reminders
-                List<DatabaseReminderModel> activeReminders = await DatabaseService.Instance.GetActiveRemindersAsync();
                 logger.LogInformation("Resurrecting {Count} active reminder(s)...", activeReminders.Count);
 
                 foreach (DatabaseReminderModel reminder in activeReminders)
