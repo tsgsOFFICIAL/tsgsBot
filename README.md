@@ -32,59 +32,65 @@ It offers fun utilities, moderation tools, giveaways, polls, CS2 stats, custom s
 
 ## Commands
 
-All commands are **slash commands** (`/`). Type `/` in Discord to see available commands.
+All commands are **slash commands** (`/`) unless noted. Scope shows where the command appears; `UseApplicationCommands` means everyone can run it unless server permissions override. Guild-only commands do not show in DMs.
 
-Most commands require only `UseApplicationCommands` permission - some need higher perms (shown below).
+### Public slash commands
 
-### General / Utility
+| Command                               | Description                               | Scope      | Default permission     |
+| ------------------------------------- | ----------------------------------------- | ---------- | ---------------------- |
+| `/ping`                               | Check bot latency                         | Guild & DM | UseApplicationCommands |
+| `/uptime`                             | Show bot runtime                          | Guild & DM | UseApplicationCommands |
+| `/help`                               | List commands you can use                 | Guild      | UseApplicationCommands |
+| `/invite`                             | Get bot invite link                       | Guild & DM | UseApplicationCommands |
+| `/serverinfo`                         | Show server information                   | Guild      | UseApplicationCommands |
+| `/userinfo [user]`                    | Display user details                      | Guild      | UseApplicationCommands |
+| `/randomnumber [min] [max]`           | Generate a random number                  | Guild & DM | UseApplicationCommands |
+| `/remind [task] [duration]`           | Create a reminder                         | Guild & DM | UseApplicationCommands |
+| `/myreminders`                        | List your reminders                       | Guild & DM | UseApplicationCommands |
+| `/report [user] [reason]`             | Report a user to moderators               | Guild      | UseApplicationCommands |
+| `/mynick [nickname]`                  | Change your own nickname                  | Guild      | ChangeNickname         |
+| `/tictactoe [opponent]`               | Challenge someone to Tic-Tac-Toe          | Guild      | UseApplicationCommands |
+| `/meme [subreddit]`                   | Random meme from Reddit                   | Guild & DM | UseApplicationCommands |
+| `/liam`                               | Random meme from #liams-memes             | Guild      | UseApplicationCommands |
+| `/csstats [identifier]`               | CS2 player stats lookup                   | Guild & DM | UseApplicationCommands |
+| `/autoaccept`                         | Directions for AutoAccept (CS2)           | Guild & DM | UseApplicationCommands |
+| `/streamdropcollector` (alias `/sdc`) | Install guide for StreamDropCollector     | Guild      | UseApplicationCommands |
+| `/software`                           | Links to tsgsOFFICIAL software downloads  | Guild & DM | UseApplicationCommands |
+| `/support`                            | Submit a support request for applications | Guild      | UseApplicationCommands |
+| `/verify [code]`                      | Verify a donation to get supporter role   | Guild      | UseApplicationCommands |
 
-- `/ping` → Check bot latency
-- `/uptime` → Bot runtime
-- `/help` → List commands you can use
-- `/invite` → Get bot invite link
-- `/serverinfo` → Server information
-- `/userinfo [user]` → User details
-- `/randomnumber [min] [max]` → Random number generator
-- `/remind [task] [duration]` → Set a reminder
-- `/myreminders` → View all your active reminders
-- `/report [user] [reason]` → Report user to moderators
+### Moderation & management slash commands
 
-### Fun & Games
+| Command                                 | Description                                   | Scope | Default permission |
+| --------------------------------------- | --------------------------------------------- | ----- | ------------------ |
+| `/mute [target] [duration] [reason]`    | Mute a member via modal flow                  | Guild | MuteMembers        |
+| `/unmute [target]`                      | Remove the muted role                         | Guild | MuteMembers        |
+| `/purge [amount] [user] [all-channels]` | Delete messages or nuke channel               | Guild | ManageChannels     |
+| `/nick [user] [nickname]`               | Change a user's nickname                      | Guild | ManageNicknames    |
+| `/role-add [user] [role]`               | Add a role to a user                          | Guild | ManageRoles        |
+| `/role-remove [user] [role]`            | Remove a role from a user                     | Guild | ManageRoles        |
+| `/role-panel`                           | Create an embed with self-assign role buttons | Guild | ManageRoles        |
+| `/say [message] [channel]`              | Make the bot speak in a channel               | Guild | ManageMessages     |
+| `/status [type] [message]`              | Temporarily change the bot's status           | Guild | Administrator      |
+| `/dm [user] [message]`                  | Send a DM to a user via the bot               | Guild | Administrator      |
 
-- `/tictactoe [opponent]` → Challenge to Tic-Tac-Toe
-- `/meme [subreddit]` → Random meme from Reddit
-- `/liam` → Random meme from sacred #liams-memes channel
+### Giveaways & polls slash commands
 
-### Moderation & Management
+| Command     | Description                     | Scope | Default permission |
+| ----------- | ------------------------------- | ----- | ------------------ |
+| `/giveaway` | Start a reaction-based giveaway | Guild | CreateEvents       |
+| `/poll`     | Create a reaction-based poll    | Guild | SendPolls          |
 
-- `/mute [target] [duration] [reason]` (MuteMembers)
-- `/unmute [target]` (MuteMembers)
-- `/nick [user] [nickname]` (ManageNicknames)
-- `/mynick [nickname]` → Change your own nickname
-- `/role-add [user] [role]` (ManageRoles)
-- `/role-remove [user] [role]` (ManageRoles)
-- `/purge [amount] [user] [all-channels]` (ManageChannels) → Delete messages / nuke channel
-- `/say [message] [channel]` (ManageMessages) → Make bot speak
-- `/status [type] [message]` (Administrator) → Change bot status
+### Context menu commands (right-click)
 
-### CS2 & Software Related
-
-- `/csstats [identifier]` → CS:GO/CS2 player stats
-- `/autoaccept` → Directions for AutoAccept (CS2 tool)
-- `/streamdropcollector` → StreamDropCollector install guide
-- `/sdc` → Short version of StreamDropCollector guide
-- `/software` → Links to tsgsOFFICIAL software downloads
-- `/support` → Submit support request for applications
-- `/verify [code]` → Verify donation → get supporter role
-
-### Giveaways & Polls
-
-- `/giveaway` (CreateEvents) → Start reacting giveaway
-- `/poll` (SendPolls) → Create reacting poll
-
-### Admin Only
-
-- `/dm [user] [message]` (Administrator)
+| Command                 | Type    | Scope | Default permission     |
+| ----------------------- | ------- | ----- | ---------------------- |
+| `Mute User`             | User    | Guild | MuteMembers            |
+| `Mute Message Author`   | Message | Guild | MuteMembers            |
+| `Unmute User`           | User    | Guild | MuteMembers            |
+| `Unmute Message Author` | Message | Guild | MuteMembers            |
+| `Report Message`        | Message | Guild | UseApplicationCommands |
+| `Edit Role Panel`       | Message | Guild | ManageRoles            |
 
 ## Self-Hosting / Running tsgsBot on Raspberry Pi
 
@@ -291,10 +297,10 @@ This is where I track planned features, improvements, and experiments for tsgsBo
 
 ### High Priority
 
-- [ ] Refactor reminder system to use a persistent state, from the database.
-- [ ] Refactor reminder system to use a proper scheduler instead of in-memory timers.
-- [ ] Refactor giveaways system to use a proper scheduler instead of in-memory timers.
-- [ ] Refactor poll system to use a proper scheduler instead of in-memory timers.
+- [x] Refactor reminder system to use a persistent state, from the database.
+- [x] Refactor reminder system to use a proper scheduler instead of in-memory timers.
+- [x] Refactor giveaways system to use a proper scheduler instead of in-memory timers.
+- [x] Refactor poll system to use a proper scheduler instead of in-memory timers.
 
 ### Nice-to-Have
 
