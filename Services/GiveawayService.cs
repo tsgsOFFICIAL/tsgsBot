@@ -79,7 +79,8 @@ namespace tsgsBot_C_.Services
                     .WithDescription(
                         $"**Prize:** {prize}\n\n" +
                         $"🏆 **Winner{(winnerCount > 1 ? "s" : "")}:** {winnerMentions ?? "No winners"}\n\n" +
-                        $"📋 **Entr{(participants.Count > 1 ? "ies" : "y")}:** {participants.Count}")
+                        $"📋 **Entr{(participants.Count > 1 ? "ies" : "y")}:** {participants.Count}\n\n" +
+                        $"<@&1463842446231343261>")
                     .WithColor(Color.Green)
                     .WithTimestamp(DateTimeOffset.UtcNow)
                     .Build();
