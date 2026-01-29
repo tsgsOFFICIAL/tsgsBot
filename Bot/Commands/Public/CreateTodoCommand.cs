@@ -395,12 +395,16 @@ namespace tsgsBot_C_.Bot.Commands.Public
             string[] lines = embed.Description.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach (string line in lines)
             {
-                // Format: "1. ⬜ text" or "1. ✅ ~~text~~"
+                // Format: "**1.** ⬜ text" or "**1.** ✅ ~~text~~"
                 int dotIndex = line.IndexOf('.');
                 if (dotIndex == -1)
                     continue;
 
                 string remainder = line[(dotIndex + 1)..].Trim();
+                // Remove closing bold markdown if present
+                if (remainder.StartsWith("**"))
+                    remainder = remainder[2..].Trim();
+
                 if (remainder.StartsWith("⬜"))
                 {
                     string text = remainder[1..].Trim(); // ⬜ is 1 char unit
@@ -428,7 +432,7 @@ namespace tsgsBot_C_.Bot.Commands.Public
             {
                 string text = item.IsComplete ? $"~~{item.Text}~~" : item.Text;
                 string icon = item.IsComplete ? "✅" : "⬜";
-                return $"**{i + 1}.** {icon} {text}";
+                return $"**{i + 1}.** {icon}  {text}";
             }));
         }
 
