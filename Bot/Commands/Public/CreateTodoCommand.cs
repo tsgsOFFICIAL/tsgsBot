@@ -395,7 +395,7 @@ namespace tsgsBot_C_.Bot.Commands.Public
             string[] lines = embed.Description.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach (string line in lines)
             {
-                // Format: "**1.** ⬜ text" or "**1.** ✅ ~~text~~"
+                // Format: "**1.** ◻️ text" or "**1.** ✅ ~~text~~"
                 int dotIndex = line.IndexOf('.');
                 if (dotIndex == -1)
                     continue;
@@ -405,9 +405,9 @@ namespace tsgsBot_C_.Bot.Commands.Public
                 if (remainder.StartsWith("**"))
                     remainder = remainder[2..].Trim();
 
-                if (remainder.StartsWith("⬜"))
+                if (remainder.StartsWith("◻️"))
                 {
-                    string text = remainder[1..].Trim(); // ⬜ is 1 char unit
+                    string text = remainder[1..].Trim(); // ◻️ is 1 char unit
                     items.Add(new TodoItem(text, false));
                 }
                 else if (remainder.StartsWith("✅"))
@@ -431,7 +431,7 @@ namespace tsgsBot_C_.Bot.Commands.Public
             return string.Join("\n", items.Select((item, i) =>
             {
                 string text = item.IsComplete ? $"~~{item.Text}~~" : item.Text;
-                string icon = item.IsComplete ? "✅" : "⬜";
+                string icon = item.IsComplete ? "✅" : "◻️";
                 return $"**{i + 1}.** {icon}  {text}";
             }));
         }
@@ -461,7 +461,7 @@ namespace tsgsBot_C_.Bot.Commands.Public
             {
                 int row = 1 + (i / 2);
                 ButtonStyle toggleStyle = items[i].IsComplete ? ButtonStyle.Success : ButtonStyle.Secondary;
-                string icon = items[i].IsComplete ? "✅" : "⬜";
+                string icon = items[i].IsComplete ? "✅" : "◻️";
                 string toggleLabel = $"{icon} {i + 1}";
                 string removeLabel = $"❌ {i + 1}";
 
