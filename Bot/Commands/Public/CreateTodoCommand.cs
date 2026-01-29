@@ -5,7 +5,7 @@ using Discord;
 
 namespace tsgsBot_C_.Bot.Commands.Public
 {
-    public sealed class TodoListCommand : LoggedCommandModule
+    public sealed class CreateTodoCommand : LoggedCommandModule
     {
         private const int MaxItemsWithoutOverflow = 8;
         private const int MaxItemsWithOverflow = 18;
