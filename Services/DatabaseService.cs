@@ -512,6 +512,39 @@ namespace tsgsBot_C_.Services
             return reminders;
         }
         /// <summary>
+        /// Retrieves a single reminder by its ID.
+        /// </summary>
+        /// <param name="reminderId">The reminder ID.</param>
+        /// <returns>The reminder if found; otherwise, null.</returns>
+        public async Task<DatabaseReminderModel?> GetReminderAsync(int reminderId)
+        {
+            const string query = @"
+                SELECT id, user_id, task, reminder_time, has_sent, created_at
+                FROM reminders
+                WHERE id = @id
+                LIMIT 1;
+            ";
+
+            NpgsqlParameter[] parameters = [new("@id", reminderId)];
+
+            using NpgsqlDataReader reader = await _dbHelper.ExecuteReaderAsync(query, parameters);
+
+            if (await reader.ReadAsync())
+            {
+                return new DatabaseReminderModel
+                {
+                    Id = reader.GetInt32(0),
+                    UserId = (ulong)reader.GetDecimal(1),
+                    Task = reader.GetString(2),
+                    ReminderTime = reader.GetDateTime(3),
+                    HasSent = reader.GetBoolean(4),
+                    CreatedAt = reader.GetDateTime(5)
+                };
+            }
+
+            return null;
+        }
+        /// <summary>
         /// Marks a reminder as sent.
         /// </summary>
         /// <param name="reminderId">The ID of the reminder to mark as sent.</param>
@@ -532,6 +565,29 @@ namespace tsgsBot_C_.Services
             NpgsqlParameter[] parameters = [new("@id", reminderId)];
 
             await _dbHelper.ExecuteNonQueryAsync(query, parameters);
+        }
+        /// <summary>
+        /// Deletes a reminder by ID for the specified user, if it has not been sent.
+        /// </summary>
+        /// <param name="userId">The user ID owning the reminder.</param>
+        /// <param name="reminderId">The reminder ID to delete.</param>
+        /// <returns>True if a reminder was deleted; otherwise, false.</returns>
+        public async Task<bool> DeleteUserReminderAsync(ulong userId, int reminderId)
+        {
+            const string query = @"
+                DELETE FROM reminders
+                WHERE id = @id AND user_id = @user_id AND has_sent = FALSE
+                RETURNING id;
+            ";
+
+            NpgsqlParameter[] parameters =
+            [
+                new("@id", reminderId),
+                new("@user_id", NpgsqlDbType.Numeric) { Value = (decimal)userId }
+            ];
+
+            object? result = await _dbHelper.ExecuteScalarAsync(query, parameters);
+            return result is int;
         }
         #endregion
     }

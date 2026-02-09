@@ -509,15 +509,22 @@ namespace tsgsBot_C_.Bot
                                     {
                                         await Task.Delay(timeLeft, ct);
 
-                                        SocketUser user = client.GetUser(reminder.UserId);
+                                        DatabaseReminderModel? latestReminder = await DatabaseService.Instance.GetReminderAsync(reminder.Id);
+                                        if (latestReminder is null || latestReminder.HasSent)
+                                        {
+                                            logger.LogInformation("Reminder {ReminderId} is no longer active; skipping send", reminder.Id);
+                                            return;
+                                        }
+
+                                        SocketUser user = client.GetUser(latestReminder.UserId);
                                         if (user != null)
                                         {
-                                            await user.SendMessageAsync($"🔔 **Reminder:** {reminder.Task}");
+                                            await user.SendMessageAsync($"🔔 **Reminder:** {latestReminder.Task}");
                                             logger.LogInformation("Reminder sent for ReminderId {ReminderId}", reminder.Id);
                                         }
                                         else
                                         {
-                                            logger.LogWarning("Could not find user {UserId} to send reminder {ReminderId}", reminder.UserId, reminder.Id);
+                                            logger.LogWarning("Could not find user {UserId} to send reminder {ReminderId}", latestReminder.UserId, reminder.Id);
                                         }
 
                                         // Mark reminder as sent in database

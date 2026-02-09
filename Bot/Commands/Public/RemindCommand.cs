@@ -1,5 +1,6 @@
 ﻿using Discord.Interactions;
 using tsgsBot_C_.Services;
+using tsgsBot_C_.Models;
 using Discord.WebSocket;
 using tsgsBot_C_.Utils;
 using Discord;
@@ -76,11 +77,18 @@ namespace tsgsBot_C_.Bot.Commands.Public
                             if (timeLeft > TimeSpan.Zero)
                                 await Task.Delay(timeLeft, ct);
 
+                            DatabaseReminderModel? reminder = await DatabaseService.Instance.GetReminderAsync(reminderId);
+                            if (reminder is null || reminder.HasSent)
+                            {
+                                logger.LogInformation("Reminder {ReminderId} is no longer active; skipping send", reminderId);
+                                return;
+                            }
+
                             // Send reminder via DM
                             SocketUser user = Context.Client.GetUser(Context.User.Id);
                             if (user != null)
                             {
-                                await user.SendMessageAsync($"🔔 **Reminder:** {task}");
+                                await user.SendMessageAsync($"🔔 **Reminder:** {reminder.Task}");
                                 logger.LogInformation("Reminder sent for ReminderId {ReminderId}", reminderId);
                             }
                             else
