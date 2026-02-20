@@ -215,13 +215,16 @@ namespace tsgsBot_C_.Bot
             logger.LogInformation("Support form state cleanup timer started (every {Minutes} min).", CLEANUP_INTERVAL_MINUTES);
         }
 
-        private async Task<(bool Valid, SocketTextChannel? Channel, IUserMessage? Message)> ValidateAndFetchMessageAsync(string guildIdStr, string channelIdStr, string messageIdStr, Action<string> onInvalid)
+        private async Task<(bool Valid, IUserMessage? Message)> ValidateAndFetchMessageAsync(string guildIdStr, string channelIdStr, string messageIdStr, Action<string> onInvalid)
         {
+            logger.LogDebug("Validating resurrection target GuildId='{GuildId}', ChannelId='{ChannelId}', MessageId='{MessageId}'",
+                guildIdStr, channelIdStr, messageIdStr);
+
             // Parse and validate guild ID
             if (!ulong.TryParse(guildIdStr, out ulong guildId))
             {
                 onInvalid("Invalid guild ID format");
-                return (false, null, null);
+                return (false, null);
             }
 
             // Fetch guild
@@ -229,39 +232,42 @@ namespace tsgsBot_C_.Bot
             if (guild == null)
             {
                 onInvalid("Guild not found");
-                return (false, null, null);
+                return (false, null);
             }
 
             // Parse and validate channel ID
             if (!ulong.TryParse(channelIdStr, out ulong channelId))
             {
                 onInvalid("Invalid channel ID format");
-                return (false, null, null);
+                return (false, null);
             }
 
             // Fetch channel
-            SocketTextChannel? channel = guild.GetTextChannel(channelId);
-            if (channel == null)
+            if (client.GetChannel(channelId) is not IMessageChannel channel)
             {
                 onInvalid("Channel not found or inaccessible");
-                return (false, null, null);
+                return (false, null);
             }
+
+            logger.LogDebug("Resolved channel {ChannelId} to type {ChannelType}", channelId, channel.GetType().Name);
 
             // Parse and validate message ID
             if (!ulong.TryParse(messageIdStr, out ulong messageId))
             {
                 onInvalid("Invalid message ID format");
-                return (false, null, null);
+                return (false, null);
             }
 
             // Fetch message
             if (await channel.GetMessageAsync(messageId) is not IUserMessage message)
             {
                 onInvalid("Message not found or deleted");
-                return (false, null, null);
+                return (false, null);
             }
 
-            return (true, channel, message);
+            logger.LogDebug("Resolved message {MessageId} in channel {ChannelId}", messageId, channelId);
+
+            return (true, message);
         }
 
         private async Task SetRandomActivityAsync()
@@ -345,7 +351,7 @@ namespace tsgsBot_C_.Bot
                 {
                     try
                     {
-                        (bool valid, SocketTextChannel? channel, IUserMessage? message) = await ValidateAndFetchMessageAsync(
+                        (bool valid, IUserMessage? message) = await ValidateAndFetchMessageAsync(
                             poll.GuildId,
                             poll.ChannelId,
                             poll.MessageId,
@@ -422,7 +428,15 @@ namespace tsgsBot_C_.Bot
                 {
                     try
                     {
-                        (bool valid, SocketTextChannel? channel, IUserMessage? message) = await ValidateAndFetchMessageAsync(
+                        logger.LogDebug("Processing giveaway resurrection for GiveawayId={GiveawayId}, GuildId={GuildId}, ChannelId={ChannelId}, MessageId={MessageId}, EndTime={EndTime:o}, HasEnded={HasEnded}",
+                            giveaway.Id,
+                            giveaway.GuildId,
+                            giveaway.ChannelId,
+                            giveaway.MessageId,
+                            giveaway.EndTime,
+                            giveaway.HasEnded);
+
+                        (bool valid, IUserMessage? message) = await ValidateAndFetchMessageAsync(
                             giveaway.GuildId,
                             giveaway.ChannelId,
                             giveaway.MessageId,
@@ -439,6 +453,7 @@ namespace tsgsBot_C_.Bot
                         if (timeLeft <= TimeSpan.Zero)
                         {
                             logger.LogWarning("Giveaway {GiveawayId} is overdue by {Overdue}. Finalizing immediately.", giveaway.Id, -timeLeft);
+                            logger.LogDebug("Attempting immediate giveaway finalization for GiveawayId={GiveawayId}, MessageId={MessageId}", giveaway.Id, giveaway.MessageId);
 
                             // Giveaway has already expired; finalize immediately
                             if (message != null)

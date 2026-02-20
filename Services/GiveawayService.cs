@@ -12,6 +12,9 @@ namespace tsgsBot_C_.Services
             {
                 int winnerCount = int.Parse(winners);
 
+                logger.LogDebug("FinalizeGiveaway start GiveawayId={GiveawayId}, MessageId={MessageId}, ConfiguredEmoji='{ReactionEmoji}', WinnerCount={WinnerCount}",
+                    giveawayId, message.Id, reactionEmoji, winnerCount);
+
                 DatabaseGiveawayModel? giveaway = await DatabaseService.Instance.GetGiveawayAsync(giveawayId);
                 if (giveaway == null)
                 {
@@ -34,6 +37,11 @@ namespace tsgsBot_C_.Services
                 // Get a list of users who reacted with the giveaway emoji
                 List<IUser> reactedUsers = new List<IUser>();
 
+                logger.LogDebug("Giveaway {GiveawayId} message has {ReactionCount} reaction buckets: {Reactions}",
+                    giveawayId,
+                    message.Reactions.Count,
+                    string.Join(", ", message.Reactions.Keys.Select(k => k.ToString())));
+
                 IEmote? giveawayEmote = message.Reactions.Keys.FirstOrDefault(e =>
                 {
                     if (e is Emote emote)
@@ -45,9 +53,14 @@ namespace tsgsBot_C_.Services
 
                 if (giveawayEmote == null)
                 {
-                    logger.LogWarning("Giveaway emote not found on message");
+                    logger.LogWarning("Giveaway emote not found on message for GiveawayId={GiveawayId}. ConfiguredEmoji='{ReactionEmoji}', AvailableReactions={Reactions}",
+                        giveawayId,
+                        reactionEmoji,
+                        string.Join(", ", message.Reactions.Keys.Select(k => k.ToString())));
                     return;
                 }
+
+                logger.LogDebug("Matched giveaway emote for GiveawayId={GiveawayId}: {MatchedEmote}", giveawayId, giveawayEmote.ToString());
 
                 if (message.Reactions.TryGetValue(giveawayEmote, out ReactionMetadata reactionMetadata))
                 {
@@ -63,10 +76,14 @@ namespace tsgsBot_C_.Services
                         .Where(u => !u.IsBot)
                         .Select(u => u.Id)];
 
+                logger.LogDebug("Giveaway {GiveawayId} participants after bot-filter: {ParticipantCount}", giveawayId, participants.Count);
+
                 // Pick winners (random shuffle)
                 Random random = new Random();
                 participants = [.. participants.OrderBy(x => random.Next())];
                 List<ulong> winnersList = [.. participants.Take(Math.Min(winnerCount, participants.Count))];
+
+                logger.LogDebug("Giveaway {GiveawayId} selected winner IDs: {WinnerIds}", giveawayId, string.Join(",", winnersList));
 
                 string winnerMentions = string.Join(", ", winnersList.Select(id => $"<@{id}>"));
 
