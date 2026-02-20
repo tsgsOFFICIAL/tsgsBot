@@ -359,15 +359,27 @@ namespace tsgsBot_C_.Bot
 
                         // Calculate remaining time using UTC for consistency
                         TimeSpan timeLeft = poll.EndTime - DateTime.UtcNow;
-                        logger.LogInformation("Resurrected poll {PollId} with {TimeLeft} remaining.", poll.Id, timeLeft);
                         if (timeLeft <= TimeSpan.Zero)
                         {
+                            logger.LogWarning("Poll {PollId} is overdue by {Overdue}. Finalizing immediately.", poll.Id, -timeLeft);
+
                             // Poll has already expired; finalize immediately
                             if (message != null)
+                            {
                                 await _pollService!.FinalizePollAsync(message, poll.Question, poll.Answers, poll.Emojis, poll.Id, poll.CreatedByUserId);
+
+                                DatabasePollModel? latestPoll = await DatabaseService.Instance.GetPollAsync(poll.Id);
+                                if (latestPoll != null && !latestPoll.HasEnded)
+                                {
+                                    logger.LogWarning("Poll {PollId} did not finalize cleanly. Marking as ended to stop resurrection loop.", poll.Id);
+                                    await DatabaseService.Instance.UpdatePollEndedAsync(poll.Id);
+                                }
+                            }
                         }
                         else
                         {
+                            logger.LogInformation("Resurrected poll {PollId} with {TimeLeft} remaining.", poll.Id, timeLeft);
+
                             // Queue delayed finalization as a background task for better tracking and reliability
                             BackgroundTask backgroundTask = new BackgroundTask
                             {
@@ -424,15 +436,27 @@ namespace tsgsBot_C_.Bot
 
                         // Calculate remaining time using UTC for consistency
                         TimeSpan timeLeft = giveaway.EndTime - DateTime.UtcNow;
-                        logger.LogInformation("Resurrected giveaway {GiveawayId} with {TimeLeft} remaining.", giveaway.Id, timeLeft);
                         if (timeLeft <= TimeSpan.Zero)
                         {
+                            logger.LogWarning("Giveaway {GiveawayId} is overdue by {Overdue}. Finalizing immediately.", giveaway.Id, -timeLeft);
+
                             // Giveaway has already expired; finalize immediately
                             if (message != null)
+                            {
                                 await _giveawayService!.FinalizeGiveawayAsync(message, giveaway.Prize, giveaway.ReactionEmoji, giveaway.Winners.ToString(), giveaway.Id, giveaway.CreatedByUserId);
+
+                                DatabaseGiveawayModel? latestGiveaway = await DatabaseService.Instance.GetGiveawayAsync(giveaway.Id);
+                                if (latestGiveaway != null && !latestGiveaway.HasEnded)
+                                {
+                                    logger.LogWarning("Giveaway {GiveawayId} did not finalize cleanly. Marking as ended to stop resurrection loop.", giveaway.Id);
+                                    await DatabaseService.Instance.UpdateGiveawayEndedAsync(giveaway.Id);
+                                }
+                            }
                         }
                         else
                         {
+                            logger.LogInformation("Resurrected giveaway {GiveawayId} with {TimeLeft} remaining.", giveaway.Id, timeLeft);
+
                             // Queue delayed finalization as a background task for better tracking and reliability
                             BackgroundTask backgroundTask = new BackgroundTask
                             {
