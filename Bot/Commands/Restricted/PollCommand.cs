@@ -5,6 +5,7 @@ using tsgsBot_C_.Models;
 using Discord.WebSocket;
 using Discord.Rest;
 using Discord;
+using tsgsBot_C_.Utils;
 
 namespace tsgsBot_C_.Bot.Commands.Restricted
 {
@@ -277,7 +278,7 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
                             logger.LogInformation("Poll finalization task started for PollId {PollId}, waiting {TimeLeft} until end time", pollId, timeLeft);
 
                             if (timeLeft > TimeSpan.Zero)
-                                await Task.Delay(timeLeft, ct);
+                                await DelayHelper.DelayAsync(timeLeft, ct);
 
                             // Fetch fresh message for reactions
                             if (await pollMessage.Channel.GetMessageAsync(pollMessage.Id) is IUserMessage message)

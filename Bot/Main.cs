@@ -6,6 +6,7 @@ using Discord.WebSocket;
 using System.Reflection;
 using Discord.Rest;
 using Discord;
+using tsgsBot_C_.Utils;
 
 namespace tsgsBot_C_.Bot
 {
@@ -376,7 +377,7 @@ namespace tsgsBot_C_.Bot
                                 {
                                     try
                                     {
-                                        await Task.Delay(timeLeft, ct);
+                                        await DelayHelper.DelayAsync(timeLeft, ct);
                                         if (message != null)
                                             await _pollService!.FinalizePollAsync(message, poll.Question, poll.Answers, poll.Emojis, poll.Id, poll.CreatedByUserId);
                                         logger.LogInformation("Successfully finalized poll {PollId}", poll.Id);
@@ -441,7 +442,7 @@ namespace tsgsBot_C_.Bot
                                 {
                                     try
                                     {
-                                        await Task.Delay(timeLeft, ct);
+                                        await DelayHelper.DelayAsync(timeLeft, ct);
                                         if (message != null)
                                             await _giveawayService!.FinalizeGiveawayAsync(message, giveaway.Prize, giveaway.ReactionEmoji, giveaway.Winners.ToString(), giveaway.Id, giveaway.CreatedByUserId);
                                         logger.LogInformation("Successfully finalized giveaway {GiveawayId}", giveaway.Id);
@@ -507,7 +508,7 @@ namespace tsgsBot_C_.Bot
                                 {
                                     try
                                     {
-                                        await Task.Delay(timeLeft, ct);
+                                        await DelayHelper.DelayAsync(timeLeft, ct);
 
                                         DatabaseReminderModel? latestReminder = await DatabaseService.Instance.GetReminderAsync(reminder.Id);
                                         if (latestReminder is null || latestReminder.HasSent)

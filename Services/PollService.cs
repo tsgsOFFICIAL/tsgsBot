@@ -35,14 +35,16 @@ namespace tsgsBot_C_.Services
         {
             try
             {
-                // Mark as ended in DB (idempotent)
-                await DatabaseService.Instance.UpdatePollEndedAsync(pollId);
-
-                // Optional: double-check it wasn't already ended
                 DatabasePollModel? poll = await DatabaseService.Instance.GetPollAsync(pollId);
                 if (poll == null)
                 {
                     logger.LogInformation("Poll {PollId} not found", pollId);
+                    return;
+                }
+
+                if (poll.HasEnded)
+                {
+                    logger.LogInformation("Poll {PollId} already finalized", pollId);
                     return;
                 }
 
@@ -99,9 +101,9 @@ namespace tsgsBot_C_.Services
                 }
 
                 // Get the display name and avatar URL safely
-                IUser createdByUser = await message.Channel.GetUserAsync(createdByUserId);
-                string displayName = (createdByUser as SocketGuildUser)?.Nickname ?? "Unknown";
-                string avatarUrl = createdByUser.GetAvatarUrl(size: 512);
+                IUser? createdByUser = await message.Channel.GetUserAsync(createdByUserId);
+                string displayName = (createdByUser as SocketGuildUser)?.Nickname ?? createdByUser?.Username ?? "Unknown";
+                string avatarUrl = createdByUser?.GetAvatarUrl(size: 512) ?? string.Empty;
 
                 // Results embed
                 Embed embed = new EmbedBuilder()
@@ -115,6 +117,9 @@ namespace tsgsBot_C_.Services
                 // Clean up original poll message and post results
                 await message.DeleteAsync();
                 await message.Channel.SendMessageAsync(embed: embed);
+
+                // Mark as ended in DB (idempotent)
+                await DatabaseService.Instance.UpdatePollEndedAsync(pollId);
 
                 logger.LogInformation("Successfully finalized poll {PollId}", pollId);
             }

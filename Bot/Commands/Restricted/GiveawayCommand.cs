@@ -5,6 +5,7 @@ using tsgsBot_C_.Models;
 using Discord.WebSocket;
 using Discord.Rest;
 using Discord;
+using tsgsBot_C_.Utils;
 
 namespace tsgsBot_C_.Bot.Commands.Restricted
 {
@@ -233,7 +234,7 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
                             logger.LogInformation("Giveaway finalization task started for GiveawayId {GiveawayId}, waiting {TimeLeft} until end time", giveawayId, timeLeft);
 
                             if (timeLeft > TimeSpan.Zero)
-                                await Task.Delay(timeLeft, ct);
+                                await DelayHelper.DelayAsync(timeLeft, ct);
 
                             // Fetch fresh message for reactions
                             if (await giveawayMessage.Channel.GetMessageAsync(giveawayMessage.Id) is IUserMessage message)

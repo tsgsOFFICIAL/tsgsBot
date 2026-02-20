@@ -12,14 +12,16 @@ namespace tsgsBot_C_.Services
             {
                 int winnerCount = int.Parse(winners);
 
-                // Mark as ended in DB (idempotent)
-                await DatabaseService.Instance.UpdateGiveawayEndedAsync(giveawayId);
-
-                // Optional: double-check it wasn't already ended
                 DatabaseGiveawayModel? giveaway = await DatabaseService.Instance.GetGiveawayAsync(giveawayId);
                 if (giveaway == null)
                 {
                     logger.LogInformation("Giveaway {GiveawayId} not found", giveawayId);
+                    return;
+                }
+
+                if (giveaway.HasEnded)
+                {
+                    logger.LogInformation("Giveaway {GiveawayId} already finalized", giveawayId);
                     return;
                 }
 
@@ -69,9 +71,9 @@ namespace tsgsBot_C_.Services
                 string winnerMentions = string.Join(", ", winnersList.Select(id => $"<@{id}>"));
 
                 // Get the display name and avatar URL safely
-                IUser createdByUser = await message.Channel.GetUserAsync(createdByUserId);
-                string displayName = (createdByUser as SocketGuildUser)?.Nickname ?? "Unknown";
-                string avatarUrl = createdByUser.GetAvatarUrl(size: 512);
+                IUser? createdByUser = await message.Channel.GetUserAsync(createdByUserId);
+                string displayName = (createdByUser as SocketGuildUser)?.Nickname ?? createdByUser?.Username ?? "Unknown";
+                string avatarUrl = createdByUser?.GetAvatarUrl(size: 512) ?? string.Empty;
 
                 Embed resultEmbed = new EmbedBuilder()
                     .WithTitle("🎉 Giveaway Ended!")
@@ -85,12 +87,12 @@ namespace tsgsBot_C_.Services
                     .WithTimestamp(DateTimeOffset.UtcNow)
                     .Build();
 
-                // Mark as ended in DB (idempotent)
-                await DatabaseService.Instance.UpdateGiveawayEndedAsync(giveawayId, winnersList);
-
                 // Clean up original giveaway message and post results
                 await message.DeleteAsync();
                 await message.Channel.SendMessageAsync(embed: resultEmbed);
+
+                // Mark as ended in DB (idempotent)
+                await DatabaseService.Instance.UpdateGiveawayEndedAsync(giveawayId, winnersList);
 
                 logger.LogInformation("Successfully finalized giveaway {GiveawayId}", giveawayId);
             }

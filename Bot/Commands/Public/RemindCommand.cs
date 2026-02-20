@@ -75,7 +75,7 @@ namespace tsgsBot_C_.Bot.Commands.Public
                             logger.LogInformation("Reminder task started for ReminderId {ReminderId}, waiting {TimeLeft} until reminder time", reminderId, timeLeft);
 
                             if (timeLeft > TimeSpan.Zero)
-                                await Task.Delay(timeLeft, ct);
+                                await DelayHelper.DelayAsync(timeLeft, ct);
 
                             DatabaseReminderModel? reminder = await DatabaseService.Instance.GetReminderAsync(reminderId);
                             if (reminder is null || reminder.HasSent)
