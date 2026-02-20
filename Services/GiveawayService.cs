@@ -6,6 +6,40 @@ namespace tsgsBot_C_.Services
 {
     public sealed class GiveawayService(ILogger<GiveawayService> logger)
     {
+        private static string NormalizeEmoji(string value) =>
+            string.IsNullOrWhiteSpace(value)
+                ? string.Empty
+                : value.Trim().Replace("\uFE0F", string.Empty);
+
+        private static IEmote? ResolveGiveawayEmote(IUserMessage message, string reactionEmoji)
+        {
+            if (Emote.TryParse(reactionEmoji, out Emote? configuredCustom))
+            {
+                IEmote? byId = message.Reactions.Keys.FirstOrDefault(e => e is Emote em && em.Id == configuredCustom.Id);
+                if (byId != null)
+                    return byId;
+            }
+
+            string configuredTrimmed = reactionEmoji.Trim(':');
+            string configuredNormalized = NormalizeEmoji(reactionEmoji);
+
+            IEmote? resolved = message.Reactions.Keys.FirstOrDefault(e =>
+            {
+                if (e is Emote emote)
+                    return emote.Name.Equals(configuredTrimmed, StringComparison.OrdinalIgnoreCase);
+
+                if (e is Emoji emoji)
+                    return NormalizeEmoji(emoji.Name) == configuredNormalized;
+
+                return false;
+            });
+
+            if (resolved != null)
+                return resolved;
+
+            return message.Reactions.Count == 1 ? message.Reactions.Keys.First() : null;
+        }
+
         public async Task FinalizeGiveawayAsync(IUserMessage message, string prize, string reactionEmoji, string winners, int giveawayId, ulong createdByUserId)
         {
             try
@@ -42,14 +76,7 @@ namespace tsgsBot_C_.Services
                     message.Reactions.Count,
                     string.Join(", ", message.Reactions.Keys.Select(k => k.ToString())));
 
-                IEmote? giveawayEmote = message.Reactions.Keys.FirstOrDefault(e =>
-                {
-                    if (e is Emote emote)
-                        return emote.Name == reactionEmoji.Trim(':');
-                    if (e is Emoji emoji)
-                        return emoji.Name == reactionEmoji;
-                    return false;
-                });
+                IEmote? giveawayEmote = ResolveGiveawayEmote(message, reactionEmoji);
 
                 if (giveawayEmote == null)
                 {
