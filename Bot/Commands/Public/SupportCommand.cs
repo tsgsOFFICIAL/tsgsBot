@@ -228,21 +228,34 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                             addReactions: PermValue.Allow,
                             createPublicThreads: PermValue.Allow,
                             createPrivateThreads: PermValue.Allow,
-                            sendMessagesInThreads: PermValue.Allow));
+                            sendMessagesInThreads: PermValue.Allow,
+                            sendTTSMessages: PermValue.Allow,
+                            sendVoiceMessages: PermValue.Allow
+                            ));
                 }
 
                 await createdSocket.AddPermissionOverwriteAsync(
                     (IGuildUser)Context.User,
-                    new OverwritePermissions(viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow));
+                    new OverwritePermissions(
+                        viewChannel: PermValue.Allow,
+                        sendMessages: PermValue.Allow,
+                        readMessageHistory: PermValue.Allow,
+                        attachFiles: PermValue.Allow,
+                        embedLinks: PermValue.Allow,
+                        addReactions: PermValue.Allow,
+                        sendMessagesInThreads: PermValue.Allow,
+                        sendTTSMessages: PermValue.Allow,
+                        sendVoiceMessages: PermValue.Allow
+                        ));
 
-                await createdSocket.SendMessageAsync(Context.User.Mention, embed: embed.Build());
+                await createdSocket.SendMessageAsync($"{supportRole?.Mention}\n\n{Context.User.Mention}, your support ticket has been created.", embed: embed.Build());
                 ticketChannel = createdSocket;
             }
         }
 
         if (ticketChannel == null)
         {
-            await FollowupAsync("⚠️ Support ticket could not be created. Please contact staff.", ephemeral: true);
+            await FollowupAsync("⚠️ Support ticket could not be created. Please contact Support.", ephemeral: true);
         }
         else
         {
