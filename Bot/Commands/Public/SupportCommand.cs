@@ -210,6 +210,27 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                     Context.Guild.EveryoneRole,
                     new OverwritePermissions(viewChannel: PermValue.Deny));
 
+                IRole? supportRole = Context.Guild.Roles
+                    .FirstOrDefault(role => role.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
+
+                if (supportRole != null)
+                {
+                    await createdSocket.AddPermissionOverwriteAsync(
+                        supportRole,
+                        new OverwritePermissions(
+                            viewChannel: PermValue.Allow,
+                            sendMessages: PermValue.Allow,
+                            readMessageHistory: PermValue.Allow,
+                            manageChannel: PermValue.Allow,
+                            manageMessages: PermValue.Allow,
+                            attachFiles: PermValue.Allow,
+                            embedLinks: PermValue.Allow,
+                            addReactions: PermValue.Allow,
+                            createPublicThreads: PermValue.Allow,
+                            createPrivateThreads: PermValue.Allow,
+                            sendMessagesInThreads: PermValue.Allow));
+                }
+
                 await createdSocket.AddPermissionOverwriteAsync(
                     (IGuildUser)Context.User,
                     new OverwritePermissions(viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow));
