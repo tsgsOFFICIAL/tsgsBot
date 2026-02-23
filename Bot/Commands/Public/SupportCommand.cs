@@ -2,6 +2,8 @@
 using Discord.Interactions;
 using tsgsBot_C_.Models;
 using Discord;
+using Discord.Rest;
+using Discord.WebSocket;
 
 namespace tsgsBot_C_.Bot.Commands.Public;
 
@@ -139,6 +141,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         EmbedBuilder embed = new EmbedBuilder()
             .WithTitle($"🧾 {appName} — Support Request")
             .WithColor(new Color(3, 169, 252))
+            .WithAuthor(Context.User.GlobalName ?? Context.User.Username, Context.User.GetDisplayAvatarUrl())
             .WithCurrentTimestamp()
             .AddField("Application", appName, true)
             .AddField("Issue Type", state.IssueType ?? "Not specified", true)
@@ -160,12 +163,72 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             msg.Flags = MessageFlags.Ephemeral;
         });
 
-        // Send to support channel
-        //if (ulong.TryParse("688841094980436069", out ulong chId)) // support
-        if (ulong.TryParse("539104904845852683", out ulong chId)) // staff-testing
+        // Create a private ticket channel using staff channel/category permissions as the base.
+        ITextChannel? ticketChannel = null;
+
+        if (Context.Guild.TextChannels.FirstOrDefault(channel => channel.Name == "staff-chat") is SocketTextChannel staffChannel)
         {
-            if (Context.Client.GetChannel(chId) is IMessageChannel channel)
-                await channel.SendMessageAsync(embed: embed.Build());
+            string baseName = "ticket-";
+            HashSet<string> existingNames = Context.Guild.TextChannels
+                .Select(channel => channel.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            int nextNumber = Context.Guild.TextChannels
+                .Where(channel => channel.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase))
+                .Select(channel => channel.Name[baseName.Length..])
+                .Select(value => int.TryParse(value, out int parsed) ? parsed : 0)
+                .DefaultIfEmpty(0)
+                .Max() + 1;
+
+            string ticketName = $"{baseName}{nextNumber}";
+            while (existingNames.Contains(ticketName))
+            {
+                nextNumber++;
+                ticketName = $"{baseName}{nextNumber}";
+            }
+
+            RestTextChannel created = await Context.Guild.CreateTextChannelAsync(ticketName, props =>
+            {
+                props.CategoryId = staffChannel.CategoryId;
+                props.Topic = $"Support ticket for {Context.User.Username} ({Context.User.Id})";
+            });
+
+            SocketTextChannel? createdSocket = Context.Guild.GetTextChannel(created.Id);
+            if (createdSocket != null)
+            {
+                foreach (Overwrite overwrite in staffChannel.PermissionOverwrites)
+                {
+                    OverwritePermissions permissions = overwrite.Permissions;
+                    if (overwrite.TargetType == PermissionTarget.Role)
+                    {
+                        IRole? role = Context.Guild.GetRole(overwrite.TargetId);
+                        if (role != null)
+                            await createdSocket.AddPermissionOverwriteAsync(role, permissions);
+                    }
+                    else if (overwrite.TargetType == PermissionTarget.User)
+                    {
+                        IGuildUser? guildUser = Context.Guild.GetUser(overwrite.TargetId);
+                        if (guildUser != null)
+                            await createdSocket.AddPermissionOverwriteAsync(guildUser, permissions);
+                    }
+                }
+
+                await createdSocket.AddPermissionOverwriteAsync(
+                    (IGuildUser)Context.User,
+                    new OverwritePermissions(viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow));
+
+                await createdSocket.SendMessageAsync(Context.User.Mention, embed: embed.Build());
+                ticketChannel = createdSocket;
+            }
+        }
+
+        if (ticketChannel == null)
+        {
+            await FollowupAsync("⚠️ Support ticket could not be created. Please contact staff.", ephemeral: true);
+        }
+        else
+        {
+            await FollowupAsync($"✅ Support ticket created: {ticketChannel.Mention}", ephemeral: true);
         }
 
         // Clear state after success
