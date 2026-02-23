@@ -163,10 +163,19 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             msg.Flags = MessageFlags.Ephemeral;
         });
 
-        // Create a private ticket channel using staff channel/category permissions as the base.
+        // Create a private ticket channel under support category.
         ITextChannel? ticketChannel = null;
+        SocketTextChannel? supportChannel = Context.Guild.TextChannels
+            .FirstOrDefault(channel => channel.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
 
-        if (Context.Guild.TextChannels.FirstOrDefault(channel => channel.Name == "staff-chat") is SocketTextChannel staffChannel)
+        SocketCategoryChannel? targetCategory = Context.Guild.CategoryChannels
+            .FirstOrDefault(category => category.Name.Equals("Support🆘", StringComparison.OrdinalIgnoreCase));
+
+        targetCategory ??= supportChannel != null
+            ? Context.Guild.GetCategoryChannel(supportChannel.CategoryId.GetValueOrDefault())
+            : null;
+
+        if (targetCategory != null)
         {
             string baseName = "ticket-";
             HashSet<string> existingNames = Context.Guild.TextChannels
@@ -189,29 +198,17 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
 
             RestTextChannel created = await Context.Guild.CreateTextChannelAsync(ticketName, props =>
             {
-                props.CategoryId = staffChannel.CategoryId;
+                props.CategoryId = targetCategory.Id;
                 props.Topic = $"Support ticket for {Context.User.Username} ({Context.User.Id})";
             });
 
             SocketTextChannel? createdSocket = Context.Guild.GetTextChannel(created.Id);
             if (createdSocket != null)
             {
-                foreach (Overwrite overwrite in staffChannel.PermissionOverwrites)
-                {
-                    OverwritePermissions permissions = overwrite.Permissions;
-                    if (overwrite.TargetType == PermissionTarget.Role)
-                    {
-                        IRole? role = Context.Guild.GetRole(overwrite.TargetId);
-                        if (role != null)
-                            await createdSocket.AddPermissionOverwriteAsync(role, permissions);
-                    }
-                    else if (overwrite.TargetType == PermissionTarget.User)
-                    {
-                        IGuildUser? guildUser = Context.Guild.GetUser(overwrite.TargetId);
-                        if (guildUser != null)
-                            await createdSocket.AddPermissionOverwriteAsync(guildUser, permissions);
-                    }
-                }
+                // Keep channel private by default.
+                await createdSocket.AddPermissionOverwriteAsync(
+                    Context.Guild.EveryoneRole,
+                    new OverwritePermissions(viewChannel: PermValue.Deny));
 
                 await createdSocket.AddPermissionOverwriteAsync(
                     (IGuildUser)Context.User,
