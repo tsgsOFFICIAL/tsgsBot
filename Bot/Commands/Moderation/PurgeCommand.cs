@@ -24,12 +24,28 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
 
         [SlashCommand("purge", "Deletes messages or nukes the channel (if no params)")]
         [DefaultMemberPermissions(GuildPermission.ManageChannels)]
-        public async Task PurgeAsync(int? amount = null, IUser? user = null, bool allChannels = false)
+        public async Task PurgeAsync(int? amount = null, IUser? user = null, string? userId = null, bool allChannels = false)
         {
             await DeferAsync(ephemeral: true);
-            await LogCommandAsync(("amount", amount), ("user", user), ("allChannels", allChannels));
+            await LogCommandAsync(("amount", amount), ("user", user), ("userId", userId), ("allChannels", allChannels));
 
-            bool isNuke = amount == null && user == null;
+            ulong? targetUserId = null;
+            if (user != null)
+            {
+                targetUserId = user.Id;
+            }
+            else if (!string.IsNullOrWhiteSpace(userId))
+            {
+                if (!ulong.TryParse(userId, out ulong parsedUserId))
+                {
+                    await FollowupAsync("Invalid userId. Please provide a valid Discord user ID.", ephemeral: true);
+                    return;
+                }
+
+                targetUserId = parsedUserId;
+            }
+
+            bool isNuke = amount == null && targetUserId == null;
 
             if (amount.HasValue && amount.Value <= 0)
             {
@@ -37,7 +53,7 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                 return;
             }
 
-            if (allChannels && user == null)
+            if (allChannels && targetUserId == null)
             {
                 await FollowupAsync("The allChannels option can only be used when a user is specified.", ephemeral: true);
                 return;
@@ -68,7 +84,7 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                 List<IMessage> allMessages = new List<IMessage>();
                 int remaining = amount ?? int.MaxValue;
 
-                if (allChannels && user != null)
+                if (allChannels && targetUserId.HasValue)
                 {
                     // Fetch from all channels in the guild
                     IReadOnlyCollection<SocketTextChannel> textChannels = Context.Guild.TextChannels;
@@ -103,7 +119,7 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                             if (fetched.Count == 0)
                                 break;
 
-                            List<IMessage> filtered = fetched.Where(m => m.Author.Id == user.Id).ToList();
+                            List<IMessage> filtered = fetched.Where(m => m.Author.Id == targetUserId.Value).ToList();
 
                             allMessages.AddRange(filtered.Take(remaining));
                             remaining -= filtered.Count;
@@ -143,7 +159,7 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
                         if (fetched.Count == 0)
                             break;
 
-                        List<IMessage> filtered = user != null ? fetched.Where(m => m.Author.Id == user.Id).ToList() : fetched.ToList();
+                        List<IMessage> filtered = targetUserId.HasValue ? fetched.Where(m => m.Author.Id == targetUserId.Value).ToList() : fetched.ToList();
 
                         allMessages.AddRange(filtered.Take(remaining));
                         remaining -= filtered.Count;
@@ -166,9 +182,9 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
             // Build confirmation
             string description = isNuke
                 ? "Nuke the entire channel? (This clones it, deletes the original, and renames the clone—losing all history!)"
-                : user == null
+                : !targetUserId.HasValue
                     ? $"Delete the last {state.Messages?.Count ?? 0} messages?"
-                    : $"Delete {state.Messages?.Count ?? 0} messages from {user?.Mention}?";
+                    : $"Delete {state.Messages?.Count ?? 0} messages from {(user != null ? user.Mention : $"<@{targetUserId.Value}>")}?";
 
             EmbedBuilder embedBuilder = new EmbedBuilder()
                 .WithDescription(description)
