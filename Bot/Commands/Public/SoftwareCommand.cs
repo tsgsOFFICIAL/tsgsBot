@@ -46,6 +46,10 @@ namespace tsgsBot_C_.Bot.Commands.Public
                     "The greatest free CrosshairX Alternative\n" +
                     "[Download →](<https://github.com/tsgsOFFICIAL/CrosshairY>)",
                     inline: true)
+                .AddField("CodeRaider",
+                    "The only good code raiding tool for Rust\n" +
+                    "[Download →](<https://github.com/tsgsOFFICIAL/CodeRaider>)",
+                    inline: true)
                 .AddField("More Software",
                     "[Check out my GitHub for more!](<https://github.com/tsgsOFFICIAL>)",
                     inline: false);
