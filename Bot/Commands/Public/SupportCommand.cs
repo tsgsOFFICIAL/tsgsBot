@@ -1,9 +1,9 @@
 ﻿using tsgsBot_C_.StateServices;
 using Discord.Interactions;
-using tsgsBot_C_.Models;
-using Discord;
-using Discord.Rest;
 using Discord.WebSocket;
+using tsgsBot_C_.Models;
+using Discord.Rest;
+using Discord;
 
 namespace tsgsBot_C_.Bot.Commands.Public;
 
@@ -20,7 +20,10 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             .WithCustomId("support_app")
             .WithPlaceholder("Which application is this for?")
             .AddOption("CS2 AutoAccept", "cs2aa")
-            .AddOption("Stream Drop Collector", "sdc");
+            .AddOption("Stream Drop Collector", "sdc")
+            .AddOption("CrosshairY", "crosshairy")
+            .AddOption("Rusty Painter", "rustypainter")
+            .AddOption("CodeRaider", "coderaider");
 
         await RespondAsync("First select the **application**.",
             components: new ComponentBuilder().WithSelectMenu(appMenu).Build(),
@@ -41,7 +44,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         UserSupportFormState state = stateService.GetOrCreate(Context.User.Id);
         state.SelectedApp = values[0];
 
-        string appName = state.SelectedApp == "cs2aa" ? "CS2 AutoAccept" : "Stream Drop Collector";
+        string appName = GetAppDisplayName(state.SelectedApp);
 
         // Build dynamic menus (same as before)
         SelectMenuBuilder issueMenu = new SelectMenuBuilder().WithCustomId("support_issue_type").WithPlaceholder("Select Issue Type")
@@ -55,26 +58,50 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         SelectMenuBuilder urgencyMenu = new SelectMenuBuilder().WithCustomId("support_urgency").WithPlaceholder("Select Urgency")
             .AddOption("Low", "Low").AddOption("Medium", "Medium").AddOption("High", "High").AddOption("Critical", "Critical");
 
-        SelectMenuBuilder platformMenu = new SelectMenuBuilder().WithCustomId("support_platform").WithPlaceholder("Select Platform");
+        bool showPlatform = state.SelectedApp is not ("coderaider" or "rustypainter" or "crosshairy");
 
-        if (state.SelectedApp == "cs2aa")
-            platformMenu.AddOption("Faceit", "Faceit").AddOption("Matchmaking", "Regular Matchmaking").AddOption("Other", "Other");
-        else
-            platformMenu.AddOption("Twitch", "Twitch").AddOption("Kick", "Kick").AddOption("Both", "Both");
+        SelectMenuBuilder? platformMenu = null;
+        if (showPlatform)
+        {
+            platformMenu = new SelectMenuBuilder()
+                .WithCustomId("support_platform")
+                .WithPlaceholder("Select Platform");
+
+            switch (state.SelectedApp)
+            {
+                case "cs2aa":
+                    platformMenu
+                        .AddOption("Faceit", "Faceit")
+                        .AddOption("Matchmaking", "Regular Matchmaking")
+                        .AddOption("Other", "Other");
+                    break;
+
+                case "sdc":
+                    platformMenu
+                        .AddOption("Twitch", "Twitch")
+                        .AddOption("Kick", "Kick")
+                        .AddOption("Both", "Both")
+                        .AddOption("Other", "Other");
+                    break;
+            }
+        }
 
         ButtonBuilder continueBtn = new ButtonBuilder().WithLabel("Continue to Form").WithCustomId("support_continue").WithStyle(ButtonStyle.Primary);
 
-        ComponentBuilder builder = new ComponentBuilder()
+        ComponentBuilder componentBuilder = new ComponentBuilder()
             .WithSelectMenu(issueMenu, row: 0)
             .WithSelectMenu(reproMenu, row: 1)
-            .WithSelectMenu(urgencyMenu, row: 2)
-            .WithSelectMenu(platformMenu, row: 3)
-            .WithButton(continueBtn, row: 4);
+            .WithSelectMenu(urgencyMenu, row: 2);
+
+        if (showPlatform && platformMenu != null)
+            componentBuilder.WithSelectMenu(platformMenu, row: 3);
+
+        componentBuilder.WithButton(continueBtn, row: showPlatform ? 4 : 3);
 
         await ModifyOriginalResponseAsync(x =>
         {
             x.Content = $"Selected: **{appName}**\nNow fill out the remaining fields.";
-            x.Components = builder.Build();
+            x.Components = componentBuilder.Build();
         });
     }
 
@@ -89,7 +116,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         UserSupportFormState state = stateService.GetOrCreate(Context.User.Id);
 
         // Use the interaction's custom id from the component interaction context
-        string? customId = (Context.Interaction as Discord.WebSocket.SocketMessageComponent)?.Data.CustomId;
+        string? customId = (Context.Interaction as SocketMessageComponent)?.Data.CustomId;
         switch (customId)
         {
             case "support_issue_type": state.IssueType = values[0]; break;
@@ -109,11 +136,11 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             return;
         }
 
-        string title = state.SelectedApp == "cs2aa" ? "CS2 AutoAccept — Support Form" : "Stream Drop Collector — Support Form";
-        string versionLabel = state.SelectedApp == "cs2aa" ? "CS2-AutoAccept Version" : "Stream Drop Collector Version";
+        string appName = GetAppDisplayName(state.SelectedApp);
+        string versionLabel = GetVersionLabel(state.SelectedApp);
 
         ModalBuilder modal = new ModalBuilder()
-            .WithTitle(title)
+            .WithTitle(appName)
             .WithCustomId("support_modal_full")
             .AddTextInput("Describe the Issue", "description", TextInputStyle.Paragraph, required: true)
             .AddTextInput("Operating System", "os", TextInputStyle.Short, required: true)
@@ -136,7 +163,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             return;
         }
 
-        string appName = state.SelectedApp == "cs2aa" ? "CS2 AutoAccept" : "Stream Drop Collector";
+        string appName = GetAppDisplayName(state.SelectedApp);
 
         EmbedBuilder embed = new EmbedBuilder()
             .WithTitle($"🧾 {appName} — Support Request")
@@ -146,8 +173,13 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             .AddField("Application", appName, true)
             .AddField("Issue Type", state.IssueType ?? "Not specified", true)
             .AddField("Reproducibility", state.Reproducibility ?? "Not specified", true)
-            .AddField("Urgency", state.Urgency ?? "Not specified", true)
-            .AddField("Platform", state.Platform ?? "Not specified", true)
+            .AddField("Urgency", state.Urgency ?? "Not specified", true);
+
+        // Only add Platform field if it was actually selected
+        if (!string.IsNullOrEmpty(state.Platform))
+            embed.AddField("Platform", state.Platform, true);
+
+        embed
             .AddField("Operating System", modal.OS, true)
             .AddField("Version", modal.Version, true)
             .AddField("Description", modal.Description)
@@ -280,4 +312,24 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             ]
         );
     }
+
+    private static string GetAppDisplayName(string key) => key switch
+    {
+        "cs2aa" => "CS2 AutoAccept",
+        "sdc" => "Stream Drop Collector",
+        "crosshairy" => "CrosshairY",
+        "rustypainter" => "Rusty Painter",
+        "coderaider" => "CodeRaider",
+        _ => "Unknown Application"
+    };
+
+    private static string GetVersionLabel(string key) => key switch
+    {
+        "cs2aa" => "CS2-AutoAccept Version",
+        "sdc" => "Stream Drop Collector Version",
+        "crosshairy" => "CrosshairY Version",
+        "rustypainter" => "Rusty Painter Version",
+        "coderaider" => "CodeRaider Version",
+        _ => "Application Version"
+    };
 }

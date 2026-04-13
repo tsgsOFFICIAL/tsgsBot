@@ -68,7 +68,7 @@ namespace tsgsBot_C_.StateServices
     /// provided.</remarks>
     public sealed class UserSupportFormState
     {
-        public string? SelectedApp { get; set; } // "cs2aa" or "sdc"
+        public string? SelectedApp { get; set; }
         public string? IssueType { get; set; }
         public string? Reproducibility { get; set; }
         public string? Urgency { get; set; }
