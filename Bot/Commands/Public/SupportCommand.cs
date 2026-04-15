@@ -348,7 +348,7 @@ public sealed class TicketCommands : InteractionModuleBase<SocketInteractionCont
     [ComponentInteraction("ticket_close")]
     public async Task CloseTicket()
     {
-        Console.WriteLine($"[TICKET DEBUG] Close button clicked by {Context.User.Username} ({Context.User.Id}) in #{Context.Channel.Name}");
+        Console.WriteLine($"[TICKET DEBUG] Button clicked by {Context.User.Username} ({Context.User.Id}) in #{Context.Channel.Name}");
 
         if (Context.Channel is not SocketTextChannel channel)
         {
@@ -366,7 +366,7 @@ public sealed class TicketCommands : InteractionModuleBase<SocketInteractionCont
                          Context.User is SocketGuildUser guildUser &&
                          guildUser.Roles.Any(role => role.Id == supportRole.Id);
 
-        Console.WriteLine($"[TICKET DEBUG] IsOwner: {isTicketOwner} | IsSupport: {isSupport}");
+        Console.WriteLine($"[TICKET DEBUG] IsOwner: {isTicketOwner} | IsSupport: {isSupport} | SupportRole: {supportRole?.Name ?? "null"}");
 
         if (!isTicketOwner && !isSupport)
         {
@@ -374,37 +374,35 @@ public sealed class TicketCommands : InteractionModuleBase<SocketInteractionCont
             return;
         }
 
-        Console.WriteLine("[TICKET DEBUG] Permission check passed → Sending modal directly");
+        Console.WriteLine("[TICKET DEBUG] Permissions OK → Sending modal");
 
-        try
-        {
-            var modal = new ModalBuilder()
-                .WithTitle("Close Ticket")
-                .WithCustomId("ticket_close_confirm")
-                .AddTextInput("Reason (optional)", "close_reason", TextInputStyle.Paragraph,
-                    required: false,
-                    placeholder: "Issue resolved, duplicate, user left, etc.");
+        var modal = new ModalBuilder()
+            .WithTitle("Close Ticket")
+            .WithCustomId("ticket_close_confirm")
+            .AddTextInput("Reason (optional)", "close_reason", TextInputStyle.Paragraph,
+                required: false,
+                placeholder: "Issue resolved, duplicate, user left, etc.");
 
-            await Context.Interaction.RespondWithModalAsync(modal.Build());
-            Console.WriteLine("[TICKET DEBUG] Modal sent successfully!");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[TICKET DEBUG] ERROR sending modal: {ex.Message}");
-            await RespondAsync("❌ Failed to open close dialog. Try again.", ephemeral: true);
-        }
+        await Context.Interaction.RespondWithModalAsync(modal.Build());
+        Console.WriteLine("[TICKET DEBUG] Modal sent successfully.");
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // MODAL HANDLER
+    // ─────────────────────────────────────────────────────────────
     [ModalInteraction("ticket_close_confirm")]
     public async Task CloseTicketConfirm(string? close_reason)
     {
-        Console.WriteLine($"[TICKET DEBUG] Modal submitted by {Context.User.Username} | Reason: {close_reason ?? "none"}");
+        Console.WriteLine($"[TICKET DEBUG] === MODAL SUBMITTED === by {Context.User.Username} ({Context.User.Id})");
+        Console.WriteLine($"[TICKET DEBUG] Submitted reason: '{close_reason ?? "null"}'");
 
         if (Context.Channel is not SocketTextChannel channel)
         {
-            Console.WriteLine("[TICKET DEBUG] Modal: Not a text channel.");
+            Console.WriteLine("[TICKET DEBUG] Modal: Channel is not SocketTextChannel!");
             return;
         }
+
+        Console.WriteLine($"[TICKET DEBUG] Channel: {channel.Name} ({channel.Id})");
 
         string reason = string.IsNullOrWhiteSpace(close_reason) ? "No reason provided" : close_reason.Trim();
 
@@ -418,15 +416,17 @@ public sealed class TicketCommands : InteractionModuleBase<SocketInteractionCont
                 .Build();
 
             await channel.SendMessageAsync(embed: closedEmbed);
+            Console.WriteLine("[TICKET DEBUG] Closed embed sent.");
 
-            // Rename channel
+            // Rename
             string newName = channel.Name.StartsWith("ticket-", StringComparison.OrdinalIgnoreCase)
                 ? channel.Name.Replace("ticket-", "closed-")
                 : $"closed-{channel.Name}";
 
             await channel.ModifyAsync(x => x.Name = newName);
+            Console.WriteLine($"[TICKET DEBUG] Channel renamed to: {newName}");
 
-            // Lock for regular users
+            // Permissions
             await channel.AddPermissionOverwriteAsync(Context.Guild.EveryoneRole,
                 new OverwritePermissions(sendMessages: PermValue.Deny));
 
@@ -439,11 +439,17 @@ public sealed class TicketCommands : InteractionModuleBase<SocketInteractionCont
                     new OverwritePermissions(sendMessages: PermValue.Allow));
             }
 
-            Console.WriteLine("[TICKET DEBUG] Ticket closed successfully.");
+            Console.WriteLine("[TICKET DEBUG] Permissions updated.");
+
+            // Final success message
+            await FollowupAsync("✅ Ticket has been closed and set to read-only.", ephemeral: true);
+            Console.WriteLine("[TICKET DEBUG] Followup sent → Ticket close completed successfully!");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[TICKET DEBUG] Error during close: {ex.Message}");
+            Console.WriteLine($"[TICKET DEBUG] EXCEPTION in modal handler: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            await FollowupAsync("❌ An error occurred while closing the ticket.", ephemeral: true);
         }
     }
 }
