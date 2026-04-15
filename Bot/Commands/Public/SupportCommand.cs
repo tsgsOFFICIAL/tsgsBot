@@ -184,7 +184,8 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             .AddField("Version", modal.Version, true)
             .AddField("Description", modal.Description)
             .AddField("Steps", string.IsNullOrEmpty(modal.Steps) ? "Not provided" : modal.Steps)
-            .AddField("Additional Info", string.IsNullOrEmpty(modal.Additional) ? "None" : modal.Additional);
+            .AddField("Additional Info", string.IsNullOrEmpty(modal.Additional) ? "None" : modal.Additional)
+            .AddField("Status", "🟢 Open", true);
 
         // Final cleanup - remove all components from original message
         await Context.Interaction.ModifyOriginalResponseAsync(msg =>
@@ -231,7 +232,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             RestTextChannel created = await Context.Guild.CreateTextChannelAsync(ticketName, props =>
             {
                 props.CategoryId = targetCategory.Id;
-                props.Topic = $"Support ticket for {Context.User.Username} ({Context.User.Id})";
+                props.Topic = $"[OPEN] Support ticket for {Context.User.Username} ({Context.User.Id})";
             });
 
             SocketTextChannel? createdSocket = Context.Guild.GetTextChannel(created.Id);
@@ -280,15 +281,22 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                         sendVoiceMessages: PermValue.Allow
                         ));
 
-                var initialMessage = await createdSocket.SendMessageAsync(
-                    $"{supportRole?.Mention}\n\n{Context.User.Mention}, your support ticket has been created.\n\n" +
-                    "**Ticket Status:** 🟢 **Open**",
-                    embed: embed.Build(),
-                    components: new ComponentBuilder()
-                        .WithButton("🔒 Close Ticket", "ticket_close", ButtonStyle.Danger)
-                        .Build());
+                var closeButton = new ButtonBuilder()
+                    .WithLabel("🔒 Close Ticket")
+                    .WithCustomId("ticket_close")
+                    .WithStyle(ButtonStyle.Danger);
 
-                await initialMessage.PinAsync(); // Pin the status message
+                var component = new ComponentBuilder()
+                    .WithButton(closeButton)
+                    .Build();
+
+                var ticketMessage = await createdSocket.SendMessageAsync(
+                    $"{supportRole?.Mention}\n\n{Context.User.Mention}, your support ticket has been created.",
+                    embed: embed.Build(),
+                    components: component
+                );
+
+                await ticketMessage.PinAsync(); // Pin the status message
 
                 ticketChannel = createdSocket;
             }
@@ -322,101 +330,117 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         );
     }
 
-    // ==================== TICKET CLOSE BUTTON ====================
     [ComponentInteraction("ticket_close")]
-    public async Task CloseTicketButton()
+    public async Task CloseTicket()
     {
-        Console.WriteLine($"[TICKET] Close button clicked by {Context.User.Username} ({Context.User.Id}) in #{Context.Channel.Name}");
-
         if (Context.Channel is not SocketTextChannel channel)
-        {
-            await RespondAsync("❌ This button can only be used in ticket channels.", ephemeral: true);
             return;
-        }
 
-        // Permission: Ticket creator OR Support role
-        bool isTicketOwner = channel.Topic?.Contains(Context.User.Id.ToString()) == true;
+        var user = (SocketGuildUser)Context.User;
 
-        var supportRole = Context.Guild.Roles.FirstOrDefault(r =>
+        bool isSupport = user.Roles.Any(r =>
             r.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
 
-        bool isSupport = supportRole != null &&
-                         Context.User is SocketGuildUser gu &&
-                         gu.Roles.Any(role => role.Id == supportRole.Id);
+        bool isOwner = channel.Topic?.Contains(user.Id.ToString()) == true;
 
-        if (!isTicketOwner && !isSupport)
+        if (!isSupport && !isOwner)
         {
-            await RespondAsync("❌ Only the ticket creator or support staff can close this ticket.", ephemeral: true);
+            await RespondAsync("❌ You are not allowed to close this ticket.", ephemeral: true);
             return;
         }
 
-        // Show confirmation modal (same style as your poll modal)
-        var modal = new ModalBuilder()
-            .WithTitle("Close Ticket")
-            .WithCustomId("ticket_close_confirm")
-            .AddTextInput("Reason (optional)", "close_reason", TextInputStyle.Paragraph,
-                required: false,
-                placeholder: "Issue resolved, duplicate, user left, etc.");
+        await DeferAsync();
 
-        await RespondWithModalAsync(modal.Build());   // ← Direct, like in PollCommand
-        Console.WriteLine("[TICKET] Close modal sent.");
+        // Rename channel → closed
+        if (!channel.Name.StartsWith("closed-"))
+            await channel.ModifyAsync(x => x.Name = $"closed-{channel.Name}");
+
+        // Update topic
+        string? topic = channel.Topic;
+
+        if (!string.IsNullOrEmpty(topic))
+        {
+            topic = topic.Replace("[OPEN]", "[CLOSED]");
+            await channel.ModifyAsync(x => x.Topic = topic);
+        }
+
+        // Lock channel
+        await channel.AddPermissionOverwriteAsync(
+            Context.Guild.EveryoneRole,
+            new OverwritePermissions(sendMessages: PermValue.Deny)
+        );
+
+        // Reopen button
+        var reopenButton = new ButtonBuilder()
+            .WithLabel("🔓 Reopen Ticket")
+            .WithCustomId("ticket_reopen")
+            .WithStyle(ButtonStyle.Success);
+
+        await channel.SendMessageAsync(
+            $"🔒 Ticket closed by {Context.User.Mention}",
+            components: new ComponentBuilder().WithButton(reopenButton).Build()
+        );
+
+        // Send closed embed
+        var closedEmbed = new EmbedBuilder()
+            .WithTitle("🔒 Ticket Closed")
+            .WithColor(Color.Red)
+            .WithDescription($"Closed by {Context.User.Mention}")
+            .WithCurrentTimestamp();
+
+        await channel.SendMessageAsync(embed: closedEmbed.Build());
     }
 
-    // ==================== TICKET CLOSE MODAL SUBMIT ====================
-    [ModalInteraction("ticket_close_confirm")]
-    public async Task CloseTicketConfirm(string? close_reason)
+    [ComponentInteraction("ticket_reopen")]
+    public async Task ReopenTicket()
     {
-        Console.WriteLine($"[TICKET] Modal submitted by {Context.User.Username} | Reason: {close_reason ?? "none"}");
-
         if (Context.Channel is not SocketTextChannel channel)
+            return;
+
+        var user = (SocketGuildUser)Context.User;
+
+        bool isSupport = user.Roles.Any(r =>
+            r.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
+
+        if (!isSupport)
         {
-            Console.WriteLine("[TICKET] Not a text channel in modal handler.");
+            await RespondAsync("❌ Only support can reopen tickets.", ephemeral: true);
             return;
         }
 
-        string reason = string.IsNullOrWhiteSpace(close_reason) ? "No reason provided" : close_reason.Trim();
+        await DeferAsync();
 
-        try
+        // Rename back
+        if (channel.Name.StartsWith("closed-"))
+            await channel.ModifyAsync(x => x.Name = channel.Name.Replace("closed-", ""));
+
+        // Update topic
+        string? topic = channel.Topic;
+
+        if (!string.IsNullOrEmpty(topic))
         {
-            var closedEmbed = new EmbedBuilder()
-                .WithTitle("🔒 Ticket Closed")
-                .WithColor(Color.Red)
-                .WithDescription($"**Reason:** {reason}")
-                .WithFooter($"Closed by {Context.User.Username} • {DateTime.UtcNow:yyyy-MM-dd HH:mm UTC}")
-                .Build();
-
-            await channel.SendMessageAsync(embed: closedEmbed);
-
-            // Rename channel so it's obvious it's closed
-            string newName = channel.Name.StartsWith("ticket-", StringComparison.OrdinalIgnoreCase)
-                ? channel.Name.Replace("ticket-", "closed-")
-                : $"closed-{channel.Name}";
-
-            await channel.ModifyAsync(x => x.Name = newName);
-
-            // Make read-only for everyone
-            await channel.AddPermissionOverwriteAsync(Context.Guild.EveryoneRole,
-                new OverwritePermissions(sendMessages: PermValue.Deny));
-
-            // Support role can still send messages
-            var supportRole = Context.Guild.Roles.FirstOrDefault(r =>
-                r.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
-
-            if (supportRole != null)
-            {
-                await channel.AddPermissionOverwriteAsync(supportRole,
-                    new OverwritePermissions(sendMessages: PermValue.Allow));
-            }
-
-            await FollowupAsync("✅ Ticket has been closed and set to read-only.", ephemeral: true);
-            Console.WriteLine("[TICKET] Ticket closed successfully!");
+            topic = topic.Replace("[CLOSED]", "[OPEN]");
+            await channel.ModifyAsync(x => x.Topic = topic);
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[TICKET] ERROR closing ticket: {ex.Message}");
-            await FollowupAsync("❌ Failed to close the ticket due to an internal error.", ephemeral: true);
-        }
+
+        // Unlock channel
+        await channel.AddPermissionOverwriteAsync(
+            Context.Guild.EveryoneRole,
+            new OverwritePermissions(sendMessages: PermValue.Allow)
+        );
+
+        // Add close button again
+        var closeButton = new ButtonBuilder()
+            .WithLabel("🔒 Close Ticket")
+            .WithCustomId("ticket_close")
+            .WithStyle(ButtonStyle.Danger);
+
+        await channel.SendMessageAsync(
+            "🔓 Ticket reopened.",
+            components: new ComponentBuilder().WithButton(closeButton).Build()
+        );
     }
+
     private static string GetAppDisplayName(string key) => key switch
     {
         "cs2aa" => "CS2 AutoAccept",
