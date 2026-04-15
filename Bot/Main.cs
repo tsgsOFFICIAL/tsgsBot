@@ -97,6 +97,7 @@ namespace tsgsBot_C_.Bot
             client.UserJoined += OnGuildMemberAdded;
             client.UserLeft += OnGuildMemberRemoved;
             client.InteractionCreated += HandleInteractionAsync;
+            client.ModalSubmitted += HandleModalSubmitAsync;
 
             // Start Discord connection
             try
