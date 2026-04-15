@@ -667,5 +667,12 @@ namespace tsgsBot_C_.Bot
                     interaction.Id, interaction.Type, interaction.User.Id);
             }
         }
+
+        private async Task HandleModalSubmit(SocketModal modal)
+        {
+            Console.WriteLine($"[GLOBAL MODAL DEBUG] Modal submitted with CustomId: '{modal.Data.CustomId}' by {modal.User.Username}");
+            // Let normal routing handle it
+            await HandleInteractionAsync(modal);
+        }
     }
 }
