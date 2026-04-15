@@ -322,7 +322,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         );
     }
 
-    // ==================== TICKET CLOSE SYSTEM ====================
+    // ==================== TICKET CLOSE BUTTON ====================
     [ComponentInteraction("ticket_close")]
     public async Task CloseTicketButton()
     {
@@ -334,7 +334,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             return;
         }
 
-        // Permission check: Ticket creator OR Support role
+        // Permission: Ticket creator OR Support role
         bool isTicketOwner = channel.Topic?.Contains(Context.User.Id.ToString()) == true;
 
         var supportRole = Context.Guild.Roles.FirstOrDefault(r =>
@@ -350,7 +350,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             return;
         }
 
-        // Send confirmation modal
+        // Show confirmation modal (same style as your poll modal)
         var modal = new ModalBuilder()
             .WithTitle("Close Ticket")
             .WithCustomId("ticket_close_confirm")
@@ -358,10 +358,11 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                 required: false,
                 placeholder: "Issue resolved, duplicate, user left, etc.");
 
-        await Context.Interaction.RespondWithModalAsync(modal.Build());
-        Console.WriteLine("[TICKET] Close modal sent successfully.");
+        await RespondWithModalAsync(modal.Build());   // ← Direct, like in PollCommand
+        Console.WriteLine("[TICKET] Close modal sent.");
     }
 
+    // ==================== TICKET CLOSE MODAL SUBMIT ====================
     [ModalInteraction("ticket_close_confirm")]
     public async Task CloseTicketConfirm(string? close_reason)
     {
@@ -369,7 +370,7 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
 
         if (Context.Channel is not SocketTextChannel channel)
         {
-            Console.WriteLine("[TICKET] Modal handler: Not a text channel.");
+            Console.WriteLine("[TICKET] Not a text channel in modal handler.");
             return;
         }
 
@@ -377,7 +378,6 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
 
         try
         {
-            // Show clear closed message
             var closedEmbed = new EmbedBuilder()
                 .WithTitle("🔒 Ticket Closed")
                 .WithColor(Color.Red)
@@ -387,21 +387,21 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
 
             await channel.SendMessageAsync(embed: closedEmbed);
 
-            // Rename channel to show it's closed
+            // Rename channel so it's obvious it's closed
             string newName = channel.Name.StartsWith("ticket-", StringComparison.OrdinalIgnoreCase)
                 ? channel.Name.Replace("ticket-", "closed-")
                 : $"closed-{channel.Name}";
 
             await channel.ModifyAsync(x => x.Name = newName);
 
-            // Make channel read-only for regular users
+            // Make read-only for everyone
             await channel.AddPermissionOverwriteAsync(Context.Guild.EveryoneRole,
                 new OverwritePermissions(sendMessages: PermValue.Deny));
 
+            // Support role can still send messages
             var supportRole = Context.Guild.Roles.FirstOrDefault(r =>
                 r.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
 
-            // Support role can still write if needed
             if (supportRole != null)
             {
                 await channel.AddPermissionOverwriteAsync(supportRole,
@@ -414,10 +414,9 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         catch (Exception ex)
         {
             Console.WriteLine($"[TICKET] ERROR closing ticket: {ex.Message}");
-            await FollowupAsync("❌ Failed to close ticket due to an internal error.", ephemeral: true);
+            await FollowupAsync("❌ Failed to close the ticket due to an internal error.", ephemeral: true);
         }
     }
-
     private static string GetAppDisplayName(string key) => key switch
     {
         "cs2aa" => "CS2 AutoAccept",
