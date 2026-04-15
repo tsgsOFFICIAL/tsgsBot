@@ -378,7 +378,17 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         {
             await channel.AddPermissionOverwriteAsync(
                 owner,
-                new OverwritePermissions(sendMessages: PermValue.Deny)
+                new OverwritePermissions(
+                        viewChannel: PermValue.Allow,
+                        sendMessages: PermValue.Deny,
+                        readMessageHistory: PermValue.Allow,
+                        attachFiles: PermValue.Deny,
+                        embedLinks: PermValue.Deny,
+                        addReactions: PermValue.Deny,
+                        sendMessagesInThreads: PermValue.Deny,
+                        sendTTSMessages: PermValue.Deny,
+                        sendVoiceMessages: PermValue.Deny
+                        )
             );
         }
 
@@ -465,7 +475,17 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         {
             await channel.AddPermissionOverwriteAsync(
                 owner,
-                new OverwritePermissions(sendMessages: PermValue.Allow)
+                new OverwritePermissions(
+                        viewChannel: PermValue.Allow,
+                        sendMessages: PermValue.Allow,
+                        readMessageHistory: PermValue.Allow,
+                        attachFiles: PermValue.Allow,
+                        embedLinks: PermValue.Allow,
+                        addReactions: PermValue.Allow,
+                        sendMessagesInThreads: PermValue.Allow,
+                        sendTTSMessages: PermValue.Allow,
+                        sendVoiceMessages: PermValue.Allow
+                        )
             );
         }
 
