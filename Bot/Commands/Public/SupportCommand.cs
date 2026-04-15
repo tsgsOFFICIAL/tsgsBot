@@ -336,6 +336,12 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         if (Context.Channel is not SocketTextChannel channel)
             return;
 
+        if (channel.Topic?.Contains("[CLOSED]") == true)
+        {
+            await RespondAsync("⚠️ Ticket is already closed.", ephemeral: true);
+            return;
+        }
+
         var user = (SocketGuildUser)Context.User;
 
         bool isSupport = user.Roles.Any(r =>
@@ -351,7 +357,6 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
 
         await DeferAsync();
 
-        // Rename channel → closed
         string newName = channel.Name.StartsWith("closed-")
             ? channel.Name
             : $"closed-{channel.Name}";
@@ -365,9 +370,10 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                 x.Topic = topic;
         });
 
-        // Lock channel
-        // Deny ticket owner
-        var owner = Context.Guild.Users.FirstOrDefault(u => channel.Topic?.Contains(u.Id.ToString()) == true);
+        // Lock owner
+        var owner = Context.Guild.Users.FirstOrDefault(u =>
+            channel.Topic?.Contains(u.Id.ToString()) == true);
+
         if (owner != null)
         {
             await channel.AddPermissionOverwriteAsync(
@@ -376,16 +382,23 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             );
         }
 
-        // Ensure support can still write
-        var supportRole = Context.Guild.Roles
-            .FirstOrDefault(r => r.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
-
-        if (supportRole != null)
+        // Update pinned message (status!)
+        var ticketMsg = await GetTicketMessageAsync(channel);
+        if (ticketMsg != null)
         {
-            await channel.AddPermissionOverwriteAsync(
-                supportRole,
-                new OverwritePermissions(sendMessages: PermValue.Allow)
-            );
+            var embed = ticketMsg.Embeds.First().ToEmbedBuilder();
+
+            var statusField = embed.Fields.FirstOrDefault(f => f.Name == "Status");
+            if (statusField != null)
+                embed.Fields.Remove(statusField);
+
+            embed.AddField("Status", "🔴 Closed", true);
+
+            await ticketMsg.ModifyAsync(m =>
+            {
+                m.Embed = embed.Build();
+                m.Components = new ComponentBuilder().Build();
+            });
         }
 
         // Reopen button
@@ -394,7 +407,6 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             .WithCustomId("ticket_reopen")
             .WithStyle(ButtonStyle.Success);
 
-        // Send closed embed
         var closedEmbed = new EmbedBuilder()
             .WithTitle("🔒 Ticket Closed")
             .WithColor(Color.Red)
@@ -413,6 +425,12 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         if (Context.Channel is not SocketTextChannel channel)
             return;
 
+        if (channel.Topic?.Contains("[OPEN]") == true)
+        {
+            await RespondAsync("⚠️ Ticket is already open.", ephemeral: true);
+            return;
+        }
+
         var user = (SocketGuildUser)Context.User;
 
         bool isSupport = user.Roles.Any(r =>
@@ -426,10 +444,9 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
 
         await DeferAsync();
 
-        // Rename back
         string newName = channel.Name.StartsWith("closed-")
-            ? channel.Name
-            : $"closed-{channel.Name}";
+            ? channel.Name.Replace("closed-", "")
+            : channel.Name;
 
         string? topic = channel.Topic?.Replace("[CLOSED]", "[OPEN]");
 
@@ -440,9 +457,10 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                 x.Topic = topic;
         });
 
-        // Unlock channel
-        // Allow ticket owner
-        var owner = Context.Guild.Users.FirstOrDefault(u => channel.Topic?.Contains(u.Id.ToString()) == true);
+        // Unlock owner
+        var owner = Context.Guild.Users.FirstOrDefault(u =>
+            channel.Topic?.Contains(u.Id.ToString()) == true);
+
         if (owner != null)
         {
             await channel.AddPermissionOverwriteAsync(
@@ -451,16 +469,44 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             );
         }
 
-        // Add close button again
-        var closeButton = new ButtonBuilder()
-            .WithLabel("🔒 Close Ticket")
-            .WithCustomId("ticket_close")
-            .WithStyle(ButtonStyle.Danger);
+        // Update pinned message (status!)
+        var ticketMsg = await GetTicketMessageAsync(channel);
+        if (ticketMsg != null)
+        {
+            var embed = ticketMsg.Embeds.First().ToEmbedBuilder();
 
-        await channel.SendMessageAsync(
-            "🔓 Ticket reopened.",
-            components: new ComponentBuilder().WithButton(closeButton).Build()
-        );
+            var statusField = embed.Fields.FirstOrDefault(f => f.Name == "Status");
+            if (statusField != null)
+                embed.Fields.Remove(statusField);
+
+            embed.AddField("Status", "🟢 Open", true);
+
+            // Add close button back
+            var closeButton = new ButtonBuilder()
+                .WithLabel("🔒 Close Ticket")
+                .WithCustomId("ticket_close")
+                .WithStyle(ButtonStyle.Danger);
+
+            await ticketMsg.ModifyAsync(m =>
+            {
+                m.Embed = embed.Build();
+                m.Components = new ComponentBuilder().WithButton(closeButton).Build();
+            });
+        }
+
+        var reopenEmbed = new EmbedBuilder()
+            .WithTitle("🔓 Ticket Reopened")
+            .WithColor(Color.Green)
+            .WithDescription($"Reopened by {Context.User.Mention}")
+            .WithCurrentTimestamp();
+
+        await channel.SendMessageAsync(embed: reopenEmbed.Build());
+    }
+
+    private async Task<IUserMessage?> GetTicketMessageAsync(SocketTextChannel channel)
+    {
+        var pinned = await channel.GetPinnedMessagesAsync();
+        return pinned.FirstOrDefault(m => m.Author.Id == Context.Client.CurrentUser.Id) as IUserMessage;
     }
 
     private static string GetAppDisplayName(string key) => key switch
