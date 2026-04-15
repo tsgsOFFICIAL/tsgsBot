@@ -97,7 +97,6 @@ namespace tsgsBot_C_.Bot
             client.UserJoined += OnGuildMemberAdded;
             client.UserLeft += OnGuildMemberRemoved;
             client.InteractionCreated += HandleInteractionAsync;
-            client.ModalSubmitted += HandleModalSubmitAsync;
 
             // Start Discord connection
             try
@@ -667,13 +666,6 @@ namespace tsgsBot_C_.Bot
                 logger.LogError(ex, "Interaction execution failed for interaction {InteractionId} of type {InteractionType} from user {UserId}",
                     interaction.Id, interaction.Type, interaction.User.Id);
             }
-        }
-
-        private async Task HandleModalSubmitAsync(SocketModal modal)
-        {
-            Console.WriteLine($"[GLOBAL MODAL DEBUG] Modal submitted with CustomId: '{modal.Data.CustomId}' by {modal.User.Username}");
-            // Let normal routing handle it
-            await HandleInteractionAsync(modal);
         }
     }
 }
