@@ -668,7 +668,7 @@ namespace tsgsBot_C_.Bot
             }
         }
 
-        private async Task HandleModalSubmit(SocketModal modal)
+        private async Task HandleModalSubmitAsync(SocketModal modal)
         {
             Console.WriteLine($"[GLOBAL MODAL DEBUG] Modal submitted with CustomId: '{modal.Data.CustomId}' by {modal.User.Username}");
             // Let normal routing handle it
