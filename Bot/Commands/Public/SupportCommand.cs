@@ -352,34 +352,47 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         await DeferAsync();
 
         // Rename channel → closed
-        if (!channel.Name.StartsWith("closed-"))
-            await channel.ModifyAsync(x => x.Name = $"closed-{channel.Name}");
+        string newName = channel.Name.StartsWith("closed-")
+            ? channel.Name
+            : $"closed-{channel.Name}";
 
-        // Update topic
-        string? topic = channel.Topic;
+        string? topic = channel.Topic?.Replace("[OPEN]", "[CLOSED]");
 
-        if (!string.IsNullOrEmpty(topic))
+        await channel.ModifyAsync(x =>
         {
-            topic = topic.Replace("[OPEN]", "[CLOSED]");
-            await channel.ModifyAsync(x => x.Topic = topic);
-        }
+            x.Name = newName;
+            if (topic != null)
+                x.Topic = topic;
+        });
 
         // Lock channel
-        await channel.AddPermissionOverwriteAsync(
-            Context.Guild.EveryoneRole,
-            new OverwritePermissions(sendMessages: PermValue.Deny)
-        );
+        // Deny ticket owner
+        var owner = Context.Guild.Users.FirstOrDefault(u => channel.Topic?.Contains(u.Id.ToString()) == true);
+        if (owner != null)
+        {
+            await channel.AddPermissionOverwriteAsync(
+                owner,
+                new OverwritePermissions(sendMessages: PermValue.Deny)
+            );
+        }
+
+        // Ensure support can still write
+        var supportRole = Context.Guild.Roles
+            .FirstOrDefault(r => r.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
+
+        if (supportRole != null)
+        {
+            await channel.AddPermissionOverwriteAsync(
+                supportRole,
+                new OverwritePermissions(sendMessages: PermValue.Allow)
+            );
+        }
 
         // Reopen button
         var reopenButton = new ButtonBuilder()
             .WithLabel("🔓 Reopen Ticket")
             .WithCustomId("ticket_reopen")
             .WithStyle(ButtonStyle.Success);
-
-        await channel.SendMessageAsync(
-            $"🔒 Ticket closed by {Context.User.Mention}",
-            components: new ComponentBuilder().WithButton(reopenButton).Build()
-        );
 
         // Send closed embed
         var closedEmbed = new EmbedBuilder()
@@ -388,7 +401,10 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
             .WithDescription($"Closed by {Context.User.Mention}")
             .WithCurrentTimestamp();
 
-        await channel.SendMessageAsync(embed: closedEmbed.Build());
+        await channel.SendMessageAsync(
+            embed: closedEmbed.Build(),
+            components: new ComponentBuilder().WithButton(reopenButton).Build()
+        );
     }
 
     [ComponentInteraction("ticket_reopen")]
@@ -411,23 +427,29 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
         await DeferAsync();
 
         // Rename back
-        if (channel.Name.StartsWith("closed-"))
-            await channel.ModifyAsync(x => x.Name = channel.Name.Replace("closed-", ""));
+        string newName = channel.Name.StartsWith("closed-")
+            ? channel.Name
+            : $"closed-{channel.Name}";
 
-        // Update topic
-        string? topic = channel.Topic;
+        string? topic = channel.Topic?.Replace("[CLOSED]", "[OPEN]");
 
-        if (!string.IsNullOrEmpty(topic))
+        await channel.ModifyAsync(x =>
         {
-            topic = topic.Replace("[CLOSED]", "[OPEN]");
-            await channel.ModifyAsync(x => x.Topic = topic);
-        }
+            x.Name = newName;
+            if (topic != null)
+                x.Topic = topic;
+        });
 
         // Unlock channel
-        await channel.AddPermissionOverwriteAsync(
-            Context.Guild.EveryoneRole,
-            new OverwritePermissions(sendMessages: PermValue.Allow)
-        );
+        // Allow ticket owner
+        var owner = Context.Guild.Users.FirstOrDefault(u => channel.Topic?.Contains(u.Id.ToString()) == true);
+        if (owner != null)
+        {
+            await channel.AddPermissionOverwriteAsync(
+                owner,
+                new OverwritePermissions(sendMessages: PermValue.Allow)
+            );
+        }
 
         // Add close button again
         var closeButton = new ButtonBuilder()
