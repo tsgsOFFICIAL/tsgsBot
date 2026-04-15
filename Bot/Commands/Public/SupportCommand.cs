@@ -280,7 +280,16 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                         sendVoiceMessages: PermValue.Allow
                         ));
 
-                await createdSocket.SendMessageAsync($"{supportRole?.Mention}\n\n{Context.User.Mention}, your support ticket has been created.", embed: embed.Build());
+                var initialMessage = await createdSocket.SendMessageAsync(
+                    $"{supportRole?.Mention}\n\n{Context.User.Mention}, your support ticket has been created.\n\n" +
+                    "**Ticket Status:** 🟢 **Open**",
+                    embed: embed.Build(),
+                    components: new ComponentBuilder()
+                        .WithButton("🔒 Close Ticket", "ticket_close", ButtonStyle.Danger)
+                        .Build());
+
+                await initialMessage.PinAsync(); // Pin the status message
+
                 ticketChannel = createdSocket;
             }
         }
@@ -311,6 +320,77 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                 ("Additional Info",  string.IsNullOrWhiteSpace(modal.Additional) ? "None" : modal.Additional.Trim())
             ]
         );
+    }
+
+    [ComponentInteraction("ticket_close")]
+    public async Task CloseTicket()
+    {
+        await DeferAsync(ephemeral: true);
+
+        var channel = (SocketTextChannel)Context.Channel;
+
+        // Only ticket creator or support role can close
+        bool isTicketOwner = channel.Topic?.Contains(Context.User.Id.ToString()) == true;
+        bool isSupport = Context.Guild.Roles
+        .FirstOrDefault(r => r.Name.Equals("support", StringComparison.OrdinalIgnoreCase))?
+        .Members.Any(m => m.Id == Context.User.Id) ?? false;
+
+        if (!isTicketOwner && !isSupport)
+        {
+            await FollowupAsync("❌ Only the ticket creator or support staff can close this ticket.", ephemeral: true);
+            return;
+        }
+
+        // Show confirmation modal
+        var modal = new ModalBuilder()
+            .WithTitle("Close Ticket")
+            .WithCustomId("ticket_close_confirm")
+            .AddTextInput("Reason (optional)", "close_reason", TextInputStyle.Paragraph, required: false, placeholder: "Issue resolved, duplicate, etc.");
+
+        await Context.Interaction.RespondWithModalAsync(modal.Build());
+    }
+
+    [ModalInteraction("ticket_close_confirm")]
+    public async Task CloseTicketConfirm(string? reason)
+    {
+        await DeferAsync();
+
+        var channel = (SocketTextChannel)Context.Channel;
+
+        string closeReason = string.IsNullOrWhiteSpace(reason) ? "No reason provided" : reason.Trim();
+
+        // Update status visibly
+        var statusEmbed = new EmbedBuilder()
+            .WithTitle("🔒 Ticket Closed")
+            .WithColor(Color.Red)
+            .WithDescription($"This ticket has been closed.\n**Reason:** {closeReason}")
+            .WithFooter($"Closed by {Context.User.Username} • {DateTime.UtcNow:yyyy-MM-dd HH:mm}")
+            .Build();
+
+        await channel.SendMessageAsync(embed: statusEmbed);
+
+        // Rename channel for clarity
+        string newName = channel.Name.StartsWith("ticket-")
+            ? channel.Name.Replace("ticket-", "closed-")
+            : $"closed-{channel.Name}";
+
+        await channel.ModifyAsync(props => props.Name = newName);
+
+        // Revoke send message permissions (keep read-only for history)
+        await channel.AddPermissionOverwriteAsync(Context.Guild.EveryoneRole,
+            new OverwritePermissions(sendMessages: PermValue.Deny));
+
+        var supportRole = Context.Guild.Roles.FirstOrDefault(r => r.Name.Equals("support", StringComparison.OrdinalIgnoreCase));
+        if (supportRole != null)
+        {
+            await channel.AddPermissionOverwriteAsync(supportRole,
+                new OverwritePermissions(sendMessages: PermValue.Allow)); // Support can still comment if needed
+        }
+
+        // Optional: log the closure somewhere (transcripts channel, database, etc.)
+        await LogCommandAsync([("Action", "Ticket Closed"), ("Reason", closeReason), ("Channel", channel.Name)]);
+
+        await FollowupAsync("✅ Ticket has been closed and marked as read-only.", ephemeral: true);
     }
 
     private static string GetAppDisplayName(string key) => key switch
