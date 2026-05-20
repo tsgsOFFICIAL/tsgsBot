@@ -84,6 +84,7 @@ namespace tsgsBot_C_.Bot.Commands.ContextMenuCommands
                 state.ButtonLabels = buttonLabels;
                 state.ImageUrl = messageEmbed.Image?.Url;
                 state.OriginalMessageId = targetMessage.Id;
+                state.OriginalChannelId = targetMessage.Channel.Id;
 
                 _logger.LogInformation("Loaded role panel state for editing: title='{Title}', roles={RoleCount}", title, roles.Count);
 

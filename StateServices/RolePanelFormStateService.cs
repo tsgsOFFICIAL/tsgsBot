@@ -50,6 +50,7 @@ namespace tsgsBot_C_.StateServices
         public List<string> ButtonLabels { get; set; } = new();
         public string? ImageUrl { get; set; }
         public ulong? OriginalMessageId { get; set; }
+        public ulong? OriginalChannelId { get; set; }
 
         // used as a timestamp for cleanup (e.g. expire after 30 min)
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

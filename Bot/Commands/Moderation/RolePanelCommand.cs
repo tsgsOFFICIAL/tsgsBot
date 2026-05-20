@@ -78,6 +78,7 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
             state.ButtonLabels = buttonLabels;
             state.ImageUrl = null;
             state.OriginalMessageId = null;
+            state.OriginalChannelId = null;
 
             await ShowPreviewAsync(state, "Does this look good?", includeSkipped: true);
 
@@ -112,25 +113,38 @@ namespace tsgsBot_C_.Bot.Commands.Moderation
 
             Embed embed = BuildEmbed(state!, displayName, avatarUrl, null);
 
-            RestUserMessage sentMessage = await Context.Channel.SendMessageAsync(embed: embed, components: buttons.Build());
-
-            // If editing an existing message, delete the old one
             if (state!.OriginalMessageId.HasValue)
             {
-                try
+                IMessageChannel? messageChannel = Context.Channel;
+                if (messageChannel == null && state.OriginalChannelId.HasValue)
+                    messageChannel = Context.Client.GetChannel(state.OriginalChannelId.Value) as IMessageChannel;
+
+                if (messageChannel != null && await messageChannel.GetMessageAsync(state.OriginalMessageId.Value) is IUserMessage existingMessage)
                 {
-                    if (await Context.Channel.GetMessageAsync(state.OriginalMessageId.Value) is IMessage oldMessage)
+                    await existingMessage.ModifyAsync(msg =>
                     {
-                        await oldMessage.DeleteAsync();
-                        logger.LogInformation("Deleted original role panel message {OldMessageId} after editing", state.OriginalMessageId.Value);
-                    }
+                        msg.Embed = embed;
+                        msg.Components = buttons.Build();
+                    });
+
+                    logger.LogInformation("Updated original role panel message {MessageId} after editing", state.OriginalMessageId.Value);
+                    await ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Content = "Role panel updated.";
+                        msg.Embed = null;
+                        msg.Components = new ComponentBuilder().Build();
+                        msg.Flags = MessageFlags.Ephemeral;
+                    });
+
+                    stateService.Clear(Context.User.Id);
+                    logger.LogInformation("Role panel edited by {UserId}, message ID {MessageId}", Context.User.Id, existingMessage.Id);
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to delete original role panel message {OldMessageId}", state.OriginalMessageId.Value);
-                }
+
+                logger.LogWarning("Original role panel message {OldMessageId} not found for editing", state.OriginalMessageId.Value);
             }
 
+            RestUserMessage sentMessage = await Context.Channel.SendMessageAsync(embed: embed, components: buttons.Build());
             string followup = "Role panel posted.";
             if (state!.SkippedRoleIds.Count > 0)
             {
