@@ -253,7 +253,7 @@ namespace tsgsBot_C_.Services
         /// <returns>A task that represents the asynchronous operation. The task result contains the unique identifier of the
         /// newly created giveaway.</returns>
         /// <exception cref="InvalidOperationException">Thrown if the giveaway could not be created or the giveaway ID could not be retrieved from the database.</exception>
-        public async Task<int> CreateGiveawayAsync(string messageId, string channelId, string guildId, string prize, string reactionEmoji, DateTime endTime, ulong createdByUserId, int winners = 1)
+        public async Task<int> CreateGiveawayAsync(string messageId, string channelId, string guildId, string prize, string reactionEmoji, DateTimeOffset endTime, ulong createdByUserId, int winners = 1)
         {
             const string query = @"
                 INSERT INTO giveaways (message_id, channel_id, guild_id, prize, reaction_emoji, winners, end_time, created_by)
@@ -280,6 +280,56 @@ namespace tsgsBot_C_.Services
 
             object? result = await _dbHelper.ExecuteScalarAsync(query, parameters);
             return result is int id ? id : throw new InvalidOperationException("Failed to retrieve giveaway ID.");
+        }
+
+        public async Task<DatabaseGiveawayModel?> GetGiveawayByMessageIdAsync(string messageId)
+        {
+            const string query = "SELECT * FROM giveaways WHERE message_id = @messageId LIMIT 1;";
+            NpgsqlParameter[] parameters = new NpgsqlParameter[] {
+                new("@messageId", messageId)
+            };
+
+            using NpgsqlDataReader reader = await _dbHelper.ExecuteReaderAsync(query, parameters);
+            if (await reader.ReadAsync())
+            {
+                return new DatabaseGiveawayModel(
+                    reader.GetInt32(reader.GetOrdinal("id")),
+                    reader.GetString(reader.GetOrdinal("message_id")),
+                    reader.GetString(reader.GetOrdinal("channel_id")),
+                    reader.GetString(reader.GetOrdinal("guild_id")),
+                    reader.GetString(reader.GetOrdinal("prize")),
+                    reader.GetInt32(reader.GetOrdinal("winners")),
+                    JsonSerializer.Deserialize<List<ulong>>(reader.IsDBNull(reader.GetOrdinal("winner_ids")) ? "[]" : reader.GetString(reader.GetOrdinal("winner_ids"))) ?? new List<ulong>(),
+                    reader.GetString(reader.GetOrdinal("reaction_emoji")),
+                    reader.GetDateTime(reader.GetOrdinal("end_time")),
+                    reader.GetBoolean(reader.GetOrdinal("has_ended")),
+                    reader.GetDateTime(reader.GetOrdinal("created_at")),
+                    Convert.ToUInt64(reader.GetValue(reader.GetOrdinal("created_by")))
+                );
+            }
+
+            return null;
+        }
+
+        public async Task UpdateGiveawayAsync(int id, string prize, string reactionEmoji, int winners, DateTimeOffset endTime)
+        {
+            const string query = @"
+                UPDATE giveaways
+                SET prize = @prize,
+                    reaction_emoji = @reactionEmoji,
+                    winners = @winners,
+                    end_time = @endTime
+                WHERE id = @id;";
+
+            NpgsqlParameter[] parameters = new NpgsqlParameter[] {
+                new("@id", id),
+                new("@prize", prize),
+                new("@reactionEmoji", reactionEmoji),
+                new("@winners", winners),
+                new("@endTime", NpgsqlDbType.TimestampTz) { Value = endTime }
+            };
+
+            await _dbHelper.ExecuteNonQueryAsync(query, parameters);
         }
         /// <summary>
         /// Asynchronously retrieves a giveaway record from the database by its unique identifier.

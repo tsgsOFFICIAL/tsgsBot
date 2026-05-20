@@ -120,6 +120,10 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
             string displayName = (Context.User as SocketGuildUser)?.Nickname ?? Context.User.Username;
             string avatarUrl = Context.User.GetAvatarUrl(size: 512);
 
+            DateTimeOffset previewEndTime = state.EndTimeUtc.HasValue
+                ? new DateTimeOffset(DateTime.SpecifyKind(state.EndTimeUtc.Value, DateTimeKind.Utc))
+                : DateTimeOffset.UtcNow.AddMinutes(state.DurationMinutes);
+
             // Preview embed
             EmbedBuilder previewEmbed = new EmbedBuilder()
                 .WithTitle("📊 Giveaway (Preview)")
@@ -128,7 +132,7 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
                         $"**Prize:** {modal.Prize}\n\n" +
                         $"React with {emoji} to enter!\n\n" +
                         $"🏆 **Winners:** {modal.Winners}\n" +
-                        $"⏳ **Ends:** <t:{DateTimeOffset.UtcNow.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>\n\n" +
+                        $"⏳ **Ends:** <t:{previewEndTime.ToUnixTimeSeconds()}:R>\n\n" +
                         $"<@&1463842446231343261>")
                 .WithColor(Color.Teal);
 
@@ -175,8 +179,9 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
             string displayName = (Context.User as SocketGuildUser)?.Nickname ?? Context.User.Username;
             string avatarUrl = Context.User.GetAvatarUrl(size: 512);
 
-            // Preview embed
-            DateTime endTime = DateTime.UtcNow.AddMinutes(state.DurationMinutes);
+            DateTimeOffset endTime = state.EndTimeUtc.HasValue
+                ? new DateTimeOffset(DateTime.SpecifyKind(state.EndTimeUtc.Value, DateTimeKind.Utc))
+                : DateTimeOffset.UtcNow.AddMinutes(state.DurationMinutes);
             EmbedBuilder giveawayEmbed = new EmbedBuilder()
                 .WithTitle("📊 Giveaway")
                 .WithAuthor(displayName, avatarUrl, "https://discord.gg/Cddu5aJ")
@@ -184,13 +189,55 @@ namespace tsgsBot_C_.Bot.Commands.Restricted
                         $"**Prize:** {state.ModalData.Prize}\n\n" +
                         $"React with {emoji} to enter!\n\n" +
                         $"🏆 **Winners:** {state.ModalData.Winners}\n" +
-                        $"⏳ **Ends:** <t:{DateTimeOffset.UtcNow.AddMinutes(state.DurationMinutes).ToUnixTimeSeconds()}:R>\n\n" +
+                        $"⏳ **Ends:** <t:{endTime.ToUnixTimeSeconds()}:R>\n\n" +
                         $"<@&1463842446231343261>")
                 .WithColor(Color.Teal);
 
             if (!string.IsNullOrEmpty(state.ImageUrl))
             {
                 giveawayEmbed.WithImageUrl(state.ImageUrl);
+            }
+
+            if (state.IsEditMode && state.OriginalMessageId.HasValue && state.GiveawayId.HasValue)
+            {
+                IUserMessage? existingMessage = null;
+                IMessageChannel? messageChannel = Context.Channel as IMessageChannel;
+
+                if (messageChannel == null && state.OriginalChannelId.HasValue)
+                    messageChannel = Context.Client.GetChannel(state.OriginalChannelId.Value) as IMessageChannel;
+
+                if (messageChannel != null)
+                {
+                    if (await messageChannel.GetMessageAsync(state.OriginalMessageId.Value) is IUserMessage fetchedMessage)
+                        existingMessage = fetchedMessage;
+                }
+
+                if (existingMessage != null)
+                {
+                    await existingMessage.ModifyAsync(msg => msg.Embed = giveawayEmbed.Build());
+
+                    IEmote editEmote = Emote.TryParse(emoji, out Emote? parsedExisting) ? parsedExisting : new Emoji(emoji);
+                    bool hasReaction = existingMessage.Reactions.Keys.Any(k => k.ToString() == editEmote.ToString());
+                    if (!hasReaction)
+                        await existingMessage.AddReactionAsync(editEmote);
+
+                    await DeleteOriginalResponseAsync();
+                    await DatabaseService.Instance.UpdateGiveawayAsync(state.GiveawayId.Value, state.ModalData.Prize, state.ModalData.ReactionEmoji!, int.Parse(state.ModalData.Winners), endTime);
+                    logger.LogInformation("Giveaway {GiveawayId} edited by {User} ({UserId}) in Guild {GuildId}, Channel {ChannelId}, Message {MessageId}",
+                        state.GiveawayId.Value,
+                        Context.User.Username,
+                        Context.User.Id,
+                        Context.Guild!.Id,
+                        messageChannel!.Id,
+                        existingMessage.Id);
+                    stateService.Clear(Context.User.Id);
+                    return;
+                }
+
+                logger.LogWarning("Giveaway edit failed: original message not found for GiveawayId {GiveawayId}", state.GiveawayId.Value);
+                await FollowupAsync("Could not find the original giveaway message to edit. Please make sure it still exists.", ephemeral: true);
+                stateService.Clear(Context.User.Id);
+                return;
             }
 
             RestUserMessage giveawayMessage = await Context.Channel.SendMessageAsync(embed: giveawayEmbed.Build());

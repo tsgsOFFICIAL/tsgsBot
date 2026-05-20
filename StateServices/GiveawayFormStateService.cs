@@ -46,6 +46,12 @@ namespace tsgsBot_C_.StateServices
         public int DurationMinutes { get; set; }
         public GiveawayModalModel? ModalData { get; set; }
         public string? ImageUrl { get; set; }
+        public ulong? OriginalMessageId { get; set; }
+        public ulong? OriginalChannelId { get; set; }
+        public int? GiveawayId { get; set; }
+        public DateTime? EndTimeUtc { get; set; }
+
+        public bool IsEditMode => OriginalMessageId.HasValue && GiveawayId.HasValue;
 
         // used as a timestamp for cleanup (e.g. expire after 30 min)
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
