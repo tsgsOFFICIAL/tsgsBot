@@ -216,8 +216,18 @@ public sealed class SupportCommand(SupportFormStateService stateService) : Logge
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             int nextNumber = Context.Guild.TextChannels
-                .Where(channel => channel.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase))
-                .Select(channel => channel.Name[baseName.Length..])
+                .Where(channel => channel.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase)
+                    || channel.Name.StartsWith("closed-" + baseName, StringComparison.OrdinalIgnoreCase))
+                .Select(channel =>
+                {
+                    string name = channel.Name;
+                    const string closedPrefix = "closed-";
+                    if (name.StartsWith(closedPrefix + baseName, StringComparison.OrdinalIgnoreCase))
+                        return name[(closedPrefix + baseName).Length..];
+                    if (name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase))
+                        return name[baseName.Length..];
+                    return "0";
+                })
                 .Select(value => int.TryParse(value, out int parsed) ? parsed : 0)
                 .DefaultIfEmpty(0)
                 .Max() + 1;
